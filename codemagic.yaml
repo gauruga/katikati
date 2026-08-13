@@ -1,0 +1,79 @@
+# Codemagic CI configuration.
+# Reference: https://docs.codemagic.io/yaml/yaml-getting-started/
+
+definitions:
+  # Shared across both platforms so the checks stay identical.
+  scripts:
+    - &pub_get
+      name: Get packages
+      script: flutter pub get
+    - &analyze
+      name: Analyze
+      script: flutter analyze
+    - &test
+      name: Test
+      script: flutter test
+
+  triggering: &on_main
+    events:
+      - push
+      - pull_request
+    branch_patterns:
+      - pattern: main
+        include: true
+        source: true
+
+workflows:
+  android:
+    name: Android
+    instance_type: linux_x2
+    max_build_duration: 60
+    environment:
+      flutter: 3.44.4
+      java: 17
+    triggering: *on_main
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+        - $HOME/.gradle/caches
+    scripts:
+      - *pub_get
+      - *analyze
+      - *test
+      - name: Build APK
+        script: flutter build apk --release
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
+
+  ios:
+    name: iOS
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: 3.44.4
+      xcode: latest
+    triggering: *on_main
+    cache:
+      cache_paths:
+        - $HOME/.pub-cache
+    scripts:
+      - *pub_get
+      - *analyze
+      - *test
+      # Unsigned: proves the project compiles for a real device without
+      # requiring certificates. The .app it produces is not installable.
+      # Add signing and switch to `flutter build ipa` when distribution is needed.
+      - name: Build iOS (unsigned)
+        script: flutter build ios --release --no-codesign
+    artifacts:
+      - build/ios/iphoneos/*.app
+
+# To get build results by email, add to a workflow:
+#
+#   publishing:
+#     email:
+#       recipients:
+#         - you@example.com
+#       notify:
+#         success: false
+#         failure: true
