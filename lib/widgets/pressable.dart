@@ -5,12 +5,16 @@ import 'package:flutter/services.dart';
 class AnimatedPressable extends StatefulWidget {
   final Widget child;
   final VoidCallback? onTap;
+
+  /// 長押し。誤タップで起きてほしくない操作（回数の修正など）に使う。
+  final VoidCallback? onLongPress;
   final double pressedScale;
 
   const AnimatedPressable({
     super.key,
     required this.child,
     required this.onTap,
+    this.onLongPress,
     this.pressedScale = 0.90,
   });
 
@@ -22,7 +26,7 @@ class _AnimatedPressableState extends State<AnimatedPressable> {
   bool _pressed = false;
 
   void _setPressed(bool v) {
-    if (widget.onTap == null) return;
+    if (widget.onTap == null && widget.onLongPress == null) return;
     if (_pressed != v) setState(() => _pressed = v);
   }
 
@@ -38,6 +42,14 @@ class _AnimatedPressableState extends State<AnimatedPressable> {
           : () {
               HapticFeedback.lightImpact();
               widget.onTap!();
+            },
+      onLongPress: widget.onLongPress == null
+          ? null
+          : () {
+              // タップより強い振動で「別の操作に入った」ことを伝える。
+              HapticFeedback.mediumImpact();
+              _setPressed(false);
+              widget.onLongPress!();
             },
       child: AnimatedScale(
         scale: _pressed ? widget.pressedScale : 1.0,

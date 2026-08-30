@@ -29,7 +29,7 @@ workflows:
     instance_type: linux_x2
     max_build_duration: 60
     environment:
-      flutter: 3.44.4
+      flutter: 3.47.2
       java: 17
     triggering: *on_main
     cache:
@@ -50,7 +50,7 @@ workflows:
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
-      flutter: 3.44.4
+      flutter: 3.47.2
       xcode: latest
     triggering: *on_main
     cache:

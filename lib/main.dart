@@ -16,7 +16,7 @@ class SpinCounterApp extends StatelessWidget {
     );
 
     return MaterialApp(
-      title: 'Spin Counter',
+      title: '小役カウンター',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

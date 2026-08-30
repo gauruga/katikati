@@ -10,6 +10,10 @@ class StateStore {
   static const _kButtonLayout = 'button_layout';
   static const _kPremiumType = 'premium_type'; // none | onetime | monthly
   static const _kLayoutMode = 'layout_mode'; // fixed | free
+  // メインカウンタ下の経過秒数表示の濃さ（0.0=非表示 〜 1.0=くっきり）
+  static const _kElapsedOpacity = 'elapsed_opacity';
+  // 「下部ボタンは長押しで修正できる」ヒントを一度出したか
+  static const _kCounterHintShown = 'counter_hint_shown';
 
   Future<Map<String, dynamic>> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -25,6 +29,8 @@ class StateStore {
       'buttonLayout': prefs.getInt(_kButtonLayout) ?? 4,
       'premiumType': prefs.getString(_kPremiumType) ?? 'none',
       'layoutMode': prefs.getString(_kLayoutMode) ?? 'fixed',
+      'elapsedOpacity':
+          (prefs.getDouble(_kElapsedOpacity) ?? 1.0).clamp(0.0, 1.0),
     };
   }
 
@@ -37,6 +43,7 @@ class StateStore {
     required int buttonLayout,
     required String premiumType,
     required String layoutMode,
+    required double elapsedOpacity,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_kStartCount, startCount);
@@ -50,5 +57,16 @@ class StateStore {
     await prefs.setInt(_kButtonLayout, buttonLayout);
     await prefs.setString(_kPremiumType, premiumType);
     await prefs.setString(_kLayoutMode, layoutMode);
+    await prefs.setDouble(_kElapsedOpacity, elapsedOpacity);
+  }
+
+  Future<bool> loadCounterHintShown() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_kCounterHintShown) ?? false;
+  }
+
+  Future<void> markCounterHintShown() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_kCounterHintShown, true);
   }
 }

@@ -1,0 +1,24 @@
+# アプリアイコン生成の設定
+#
+# 使い方:
+#   1. image/app_icon.png（元絵）を差し替えたら python tool/build_app_icon.py
+#      （角丸と外余白を捨てて assets/icon/ の2枚を作り直す）
+#   2. flutter pub run flutter_launcher_icons
+#   3. アプリを再インストール（アイコンは実行時ではなくビルド時に埋め込まれる）
+#
+# 注意: 実行するとツールの不具合で ios/Runner.xcodeproj/project.pbxproj の
+#       ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS が
+#       YES から AppIcon に書き換わることがある。生成後に
+#       `git checkout -- ios/Runner.xcodeproj/project.pbxproj` で戻すこと。
+flutter_launcher_icons:
+  image_path: "assets/icon/app_icon.png"
+  android: "ic_launcher"
+  ios: true
+  # iOS はアイコンに透過を含められないため、透過部分をこの色で塗りつぶす
+  remove_alpha_ios: true
+  background_color_ios: "#F5F3FB"
+  min_sdk_android: 21
+  # Android 8 以降のアダプティブアイコン。前景は中央 66.7% しか表示されないので、
+  # app_icon_foreground.png はモチーフを小さめ（カンバスの 52%）に置いてある。
+  adaptive_icon_background: "#F2EFFA"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"

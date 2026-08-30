@@ -6,6 +6,14 @@ import 'layout_positions.dart';
 class LayoutSettingsPage extends StatefulWidget {
   final int initialButtonCount;
   final bool isPremium;
+  // 現在使用中のレイアウト ('fixed' | 'free')
+  final String layoutMode;
+  // 固定レイアウトに戻す
+  final VoidCallback onUseFixedLayout;
+  // 名前を付けて保存したレイアウト
+  final List<LayoutPreset> presets;
+  final Future<void> Function(LayoutPreset preset) onApplyPreset;
+  final Future<List<LayoutPreset>> Function(String name) onDeletePreset;
   // fromDefault: true = デフォルト配置から編集を開始 / false = 現在の配置から編集を開始
   final void Function(bool fromDefault) onOpenFreeEditor;
   final ValueChanged<int> onButtonCountChanged;
@@ -15,6 +23,11 @@ class LayoutSettingsPage extends StatefulWidget {
     super.key,
     required this.initialButtonCount,
     required this.isPremium,
+    required this.layoutMode,
+    required this.onUseFixedLayout,
+    required this.presets,
+    required this.onApplyPreset,
+    required this.onDeletePreset,
     required this.onOpenFreeEditor,
     required this.onButtonCountChanged,
     required this.onUpgrade,
@@ -27,13 +40,23 @@ class LayoutSettingsPage extends StatefulWidget {
 class _LayoutSettingsPageState extends State<LayoutSettingsPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  late int _buttonCount;
+  // 実際に反映済みの下部ボタン数
+  late int _appliedCount;
+  // 各タブで選択中（未反映）の下部ボタン数
+  late int _fixedCount;
+  late int _freeCount;
+  late String _mode;
+  late List<LayoutPreset> _presets;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _buttonCount = widget.initialButtonCount;
+    _appliedCount = widget.initialButtonCount;
+    _fixedCount = widget.initialButtonCount;
+    _freeCount = widget.initialButtonCount;
+    _mode = widget.layoutMode;
+    _presets = List.of(widget.presets);
   }
 
   @override
@@ -42,19 +65,21 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
     super.dispose();
   }
 
-  Widget _countSelector() {
+  /// 下部ボタン数の選択リング。選んだだけでは反映せず、呼び出し側の
+  /// 「適用」／「デフォルト配置から編集する」を押したときにだけ反映する。
+  Widget _countSelector({
+    required int value,
+    required ValueChanged<int> onChanged,
+  }) {
     return Wrap(
       spacing: 10,
       runSpacing: 10,
       alignment: WrapAlignment.center,
       children: List.generate(kMaxCounterButtons, (i) {
         final n = i + 1;
-        final selected = n == _buttonCount;
+        final selected = n == value;
         return GestureDetector(
-          onTap: () {
-            setState(() => _buttonCount = n);
-            widget.onButtonCountChanged(n);
-          },
+          onTap: () => onChanged(n),
           child: Container(
             width: 42,
             height: 42,
@@ -119,12 +144,62 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
             style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
           ),
           const SizedBox(height: 16),
-          _countSelector(),
+          _countSelector(
+            value: _fixedCount,
+            onChanged: (n) => setState(() => _fixedCount = n),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF7C4DFF),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onPressed: _applyFixedCount,
+              icon: const Icon(Icons.check),
+              label: const Text('適用'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            '「適用」を押すまでホーム画面には反映されません。',
+            style: TextStyle(fontSize: 12, color: Colors.black54),
+          ),
           const SizedBox(height: 24),
           const Text(
             '固定レイアウトでは、既定の位置にすべてのボタンが自動的に整列表示されます。',
             style: TextStyle(fontSize: 12, color: Colors.black54),
           ),
+          if (widget.isPremium) ...[
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF7C4DFF),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                onPressed: _mode == 'fixed'
+                    ? null
+                    : () {
+                        setState(() => _mode = 'fixed');
+                        widget.onUseFixedLayout();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('固定レイアウトに戻しました'),
+                          ),
+                        );
+                      },
+                icon: Icon(_mode == 'fixed'
+                    ? Icons.check
+                    : Icons.grid_view_rounded),
+                label: Text(
+                  _mode == 'fixed' ? '固定レイアウトを使用中' : '固定レイアウトに戻す',
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -136,13 +211,6 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '下部ボタンの数（1〜9）',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-          ),
-          const SizedBox(height: 16),
-          _countSelector(),
-          const SizedBox(height: 24),
           if (!widget.isPremium)
             Container(
               padding: const EdgeInsets.all(14),
@@ -165,12 +233,43 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
                 ],
               ),
             ),
+          if (!widget.isPremium) const SizedBox(height: 20),
+          const Text(
+            '下部ボタンの数（1〜9）',
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'この数は下の「デフォルト配置から編集する」でだけ使います。',
+            style: TextStyle(fontSize: 12, color: Colors.black54),
+          ),
+          const SizedBox(height: 16),
+          _countSelector(
+            value: _freeCount,
+            onChanged: (n) => setState(() => _freeCount = n),
+          ),
           const SizedBox(height: 18),
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF7C4DFF),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+              onPressed: _openDefaultEditor,
+              icon: const Icon(Icons.restart_alt),
+              label: Text(widget.isPremium
+                  ? 'デフォルト配置から編集する'
+                  : '試してみる（デフォルト配置・プレビュー）'),
+            ),
+          ),
+          _sectionDivider(),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF7C4DFF),
+                side: const BorderSide(color: Color(0xFF7C4DFF)),
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
               onPressed: () => widget.onOpenFreeEditor(false),
@@ -180,24 +279,16 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
                   : '試してみる（今の配置・プレビュー）'),
             ),
           ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF7C4DFF),
-                side: const BorderSide(color: Color(0xFF7C4DFF)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-              onPressed: () => widget.onOpenFreeEditor(true),
-              icon: const Icon(Icons.restart_alt),
-              label: Text(widget.isPremium
-                  ? 'デフォルト配置から編集する'
-                  : '試してみる（デフォルト配置・プレビュー）'),
-            ),
+          const SizedBox(height: 8),
+          const Text(
+            '現在のボタン配置・個数をそのまま引き継いで編集します。'
+            '上の「下部ボタンの数」の影響は受けません。',
+            style: TextStyle(fontSize: 12, color: Colors.black54),
           ),
-          if (!widget.isPremium) ...[
-            const SizedBox(height: 10),
+          _sectionDivider(),
+          if (widget.isPremium)
+            _buildPresetList()
+          else
             SizedBox(
               width: double.infinity,
               child: OutlinedButton(
@@ -205,9 +296,114 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
                 child: const Text('プレミアムにアップグレード'),
               ),
             ),
-          ],
         ],
       ),
     );
+  }
+
+  /// 区切り線。
+  Widget _sectionDivider() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 20),
+      child: Divider(height: 1, thickness: 1, color: Color(0xFFDCD1EE)),
+    );
+  }
+
+  /// 「適用」: 選んだ下部ボタン数を反映してホーム画面へ戻る。
+  void _applyFixedCount() {
+    widget.onButtonCountChanged(_fixedCount);
+    _appliedCount = _fixedCount;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('下部ボタンを$_fixedCount個にしました')),
+    );
+    Navigator.pop(context);
+  }
+
+  /// デフォルト配置から編集する。ここでだけ選択中の下部ボタン数を反映する。
+  void _openDefaultEditor() {
+    if (_freeCount != _appliedCount) {
+      widget.onButtonCountChanged(_freeCount);
+      setState(() => _appliedCount = _freeCount);
+    }
+    widget.onOpenFreeEditor(true);
+  }
+
+  Widget _buildPresetList() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          '保存したレイアウト',
+          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _presets.isEmpty
+              ? 'レイアウト編集画面の「保存」で、機種ごとの配置に名前を付けて保存できます。'
+              : 'タップするとその配置を呼び出します。',
+          style: const TextStyle(fontSize: 12, color: Colors.black54),
+        ),
+        const SizedBox(height: 10),
+        for (final preset in _presets)
+          Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              leading: const Icon(Icons.dashboard_customize_outlined,
+                  color: Color(0xFF7C4DFF)),
+              title: Text(preset.name,
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text(
+                'ボタン${preset.buttonCount}個'
+                '${preset.memoIds.isEmpty ? '' : ' / メモ${preset.memoIds.length}個'}',
+                style: const TextStyle(fontSize: 12),
+              ),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.black45),
+                onPressed: () => _confirmDelete(preset),
+              ),
+              onTap: () => _apply(preset),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _apply(LayoutPreset preset) async {
+    await widget.onApplyPreset(preset);
+    if (!mounted) return;
+    setState(() {
+      _appliedCount = preset.buttonCount;
+      _fixedCount = preset.buttonCount;
+      _freeCount = preset.buttonCount;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('「${preset.name}」を呼び出しました')),
+    );
+    Navigator.pop(context);
+  }
+
+  Future<void> _confirmDelete(LayoutPreset preset) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('「${preset.name}」を削除しますか？'),
+        content: const Text('保存したレイアウトを削除します。この操作は取り消せません。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('キャンセル'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('削除する'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final presets = await widget.onDeletePreset(preset.name);
+    if (!mounted) return;
+    setState(() => _presets = presets);
   }
 }
