@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'background_settings_page.dart';
+import 'billing.dart';
 import 'free_layout_editor_page.dart';
 import 'gogo_lamp_button.dart';
 import 'layout_positions.dart';
@@ -37,6 +39,7 @@ class _HomePageState extends State<HomePage>
   final _presetStore = LayoutPresetStore();
   final _counterProbStore = CounterProbStore();
   final _counterNameStore = CounterNameStore();
+  final _billing = BillingService();
 
   // ---- 状態 ----
   int _startCount = 0;
@@ -90,6 +93,9 @@ class _HomePageState extends State<HomePage>
     value: 1, // 起動直後に光らないよう、最初から終了状態にしておく
   );
   Color _flashColor = Colors.transparent;
+
+  // 購入手続き中はボタンを押せなくする
+  bool _purchasePending = false;
   bool _loaded = false;
 
   static const _cycleMs = 4100;
@@ -100,6 +106,28 @@ class _HomePageState extends State<HomePage>
   void initState() {
     super.initState();
     _load();
+    _initBilling();
+  }
+
+  Future<void> _initBilling() async {
+    _billing.onEntitlementChanged = (type) {
+      // 購入・復元だけでなく、解約や期限切れで entitlement が消えたときも届く。
+      if (!mounted || _premiumType == type) return;
+      setState(() => _premiumType = type);
+      _persist();
+    };
+    _billing.onPending = (pending) {
+      if (!mounted || _purchasePending == pending) return;
+      setState(() => _purchasePending = pending);
+    };
+    _billing.onError = (message) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    };
+    await _billing.init();
+    if (mounted) setState(() {});
   }
 
   Future<void> _load() async {
@@ -1507,6 +1535,15 @@ class _HomePageState extends State<HomePage>
                   const _PremiumFeatureRow(text: 'ボタンに「ベル」「チェリー」など名前を付けられる'),
                   const _PremiumFeatureRow(text: 'レイアウトを名前を付けて保存し、すぐ呼び出せる'),
                   const SizedBox(height: 20),
+                  if (!_billing.available)
+                    const Padding(
+                      padding: EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        'ストアに接続できていないため、いまは購入できません。'
+                        'ネットワークとストアアプリのログインをご確認ください。',
+                        style: TextStyle(fontSize: 12, color: Colors.redAccent),
+                      ),
+                    ),
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
@@ -1514,17 +1551,16 @@ class _HomePageState extends State<HomePage>
                         backgroundColor: const Color(0xFF7C4DFF),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      onPressed: () {
-                        setState(() => _premiumType = 'onetime');
-                        _persist();
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('買い切りプランを購入しました！')),
-                        );
-                      },
-                      child: const Text(
-                        '買い切りプラン ¥4,800（一回のみ・永久利用）',
-                        style: TextStyle(fontSize: 15),
+                      onPressed: _canBuy(BillingService.onetimeId)
+                          ? () => _buy(ctx, BillingService.onetimeId)
+                          : null,
+                      child: Text(
+                        _planLabel(
+                          '買い切りプラン',
+                          BillingService.onetimeId,
+                          '一回のみ・永久利用',
+                        ),
+                        style: const TextStyle(fontSize: 15),
                       ),
                     ),
                   ),
@@ -1536,34 +1572,52 @@ class _HomePageState extends State<HomePage>
                         side: const BorderSide(color: Color(0xFF7C4DFF)),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      onPressed: () {
-                        setState(() => _premiumType = 'monthly');
-                        _persist();
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('月額プランに登録しました！')),
-                        );
-                      },
-                      child: const Text(
-                        '月額プラン ¥300（毎月自動更新）',
-                        style: TextStyle(
+                      onPressed: _canBuy(BillingService.monthlyId)
+                          ? () => _buy(ctx, BillingService.monthlyId)
+                          : null,
+                      child: Text(
+                        _planLabel('月額プラン', BillingService.monthlyId, '毎月自動更新'),
+                        style: const TextStyle(
                           fontSize: 15,
                           color: Color(0xFF7C4DFF),
                         ),
                       ),
                     ),
                   ),
-                  if (_isPremium)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: TextButton(
-                        onPressed: () {
-                          setState(() => _premiumType = 'none');
-                          _persist();
-                          Navigator.pop(ctx);
-                        },
-                        child: const Text('プレミアムを解除（テスト用）'),
+                  if (_purchasePending)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 14),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 8),
+                          Text('手続き中です…', style: TextStyle(fontSize: 12)),
+                        ],
                       ),
+                    ),
+                  TextButton(
+                    onPressed: _purchasePending ? null : _billing.restore,
+                    child: const Text('購入を復元する'),
+                  ),
+                  const Text(
+                    '月額プランの解約はストアのサブスクリプション管理から行えます。',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 11, color: Colors.black45),
+                  ),
+                  // 開発ビルドでだけ課金状態を戻せるようにする（リリースには出さない）
+                  if (kDebugMode && _isPremium)
+                    TextButton(
+                      onPressed: () {
+                        setState(() => _premiumType = 'none');
+                        _persist();
+                        Navigator.pop(ctx);
+                      },
+                      child: const Text('プレミアムを解除（開発用）'),
                     ),
                 ],
               ),
@@ -1572,6 +1626,23 @@ class _HomePageState extends State<HomePage>
         );
       },
     );
+  }
+
+  /// 価格はストアから取得したものを出す。取れないうちはボタンを押させない。
+  bool _canBuy(String productId) =>
+      !_purchasePending &&
+      _billing.available &&
+      _billing.priceOf(productId) != null;
+
+  String _planLabel(String name, String productId, String note) {
+    final price = _billing.priceOf(productId);
+    if (price == null) return '$name（準備中）';
+    return '$name $price（$note）';
+  }
+
+  Future<void> _buy(BuildContext ctx, String productId) async {
+    Navigator.pop(ctx); // シートを閉じてストアの画面に譲る
+    await _billing.buy(productId);
   }
 
   // ---- フィードバック ----
