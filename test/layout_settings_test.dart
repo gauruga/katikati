@@ -52,15 +52,11 @@ Future<void> _openSettings(WidgetTester tester, Widget harness) async {
 }
 
 void main() {
-  testWidgets('固定レイアウト: 数字を選んだだけでは反映せず、適用で反映してホームへ戻る',
-      (tester) async {
+  testWidgets('固定レイアウト: 数字を選んだだけでは反映せず、適用で反映してホームへ戻る', (tester) async {
     final applied = <int>[];
     await _openSettings(
       tester,
-      _Harness(
-        onButtonCountChanged: applied.add,
-        onOpenFreeEditor: (_) {},
-      ),
+      _Harness(onButtonCountChanged: applied.add, onOpenFreeEditor: (_) {}),
     );
 
     await tester.tap(find.text('6'));
@@ -78,10 +74,7 @@ void main() {
     final opened = <bool>[];
     await _openSettings(
       tester,
-      _Harness(
-        onButtonCountChanged: applied.add,
-        onOpenFreeEditor: opened.add,
-      ),
+      _Harness(onButtonCountChanged: applied.add, onOpenFreeEditor: opened.add),
     );
 
     await tester.tap(find.text('自由配置レイアウト'));
@@ -97,16 +90,12 @@ void main() {
     expect(opened, [false]);
   });
 
-  testWidgets('自由配置: デフォルト配置から編集するときだけ下部ボタン数を反映する',
-      (tester) async {
+  testWidgets('自由配置: デフォルト配置から編集するときだけ下部ボタン数を反映する', (tester) async {
     final applied = <int>[];
     final opened = <bool>[];
     await _openSettings(
       tester,
-      _Harness(
-        onButtonCountChanged: applied.add,
-        onOpenFreeEditor: opened.add,
-      ),
+      _Harness(onButtonCountChanged: applied.add, onOpenFreeEditor: opened.add),
     );
 
     await tester.tap(find.text('自由配置レイアウト'));

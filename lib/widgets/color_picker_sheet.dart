@@ -59,8 +59,9 @@ class _ColorPickerSheetState extends State<ColorPickerSheet> {
   void initState() {
     super.initState();
     _mode = widget.initial.mode == 'default' ? 'solid' : widget.initial.mode;
-    _colorA =
-        widget.initial.colors.isNotEmpty ? widget.initial.colors[0] : _palette[0];
+    _colorA = widget.initial.colors.isNotEmpty
+        ? widget.initial.colors[0]
+        : _palette[0];
     _colorB = widget.initial.colors.length > 1
         ? widget.initial.colors[1]
         : _palette[2];
@@ -93,8 +94,10 @@ class _ColorPickerSheetState extends State<ColorPickerSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('色を変更',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            const Text(
+              '色を変更',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -135,11 +138,13 @@ class _ColorPickerSheetState extends State<ColorPickerSheet> {
               spacing: 10,
               runSpacing: 10,
               children: _palette
-                  .map((c) => _swatch(
-                        c,
-                        c.toARGB32() == _colorA.toARGB32(),
-                        () => setState(() => _colorA = c),
-                      ))
+                  .map(
+                    (c) => _swatch(
+                      c,
+                      c.toARGB32() == _colorA.toARGB32(),
+                      () => setState(() => _colorA = c),
+                    ),
+                  )
                   .toList(),
             ),
             if (_mode == 'gradient') ...[
@@ -153,11 +158,13 @@ class _ColorPickerSheetState extends State<ColorPickerSheet> {
                 spacing: 10,
                 runSpacing: 10,
                 children: _palette
-                    .map((c) => _swatch(
-                          c,
-                          c.toARGB32() == _colorB.toARGB32(),
-                          () => setState(() => _colorB = c),
-                        ))
+                    .map(
+                      (c) => _swatch(
+                        c,
+                        c.toARGB32() == _colorB.toARGB32(),
+                        () => setState(() => _colorB = c),
+                      ),
+                    )
                     .toList(),
               ),
             ],
@@ -206,8 +213,11 @@ class _ModeTab extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _ModeTab(
-      {required this.label, required this.selected, required this.onTap});
+  const _ModeTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {

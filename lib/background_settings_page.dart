@@ -19,8 +19,7 @@ class BackgroundSettingsPage extends StatefulWidget {
   });
 
   @override
-  State<BackgroundSettingsPage> createState() =>
-      _BackgroundSettingsPageState();
+  State<BackgroundSettingsPage> createState() => _BackgroundSettingsPageState();
 }
 
 const List<Color> _bgPalette = [
@@ -137,8 +136,10 @@ class _BackgroundSettingsPageState extends State<BackgroundSettingsPage> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.workspace_premium,
-                        color: Color(0xFFFFA000)),
+                    const Icon(
+                      Icons.workspace_premium,
+                      color: Color(0xFFFFA000),
+                    ),
                     const SizedBox(width: 10),
                     const Expanded(
                       child: Text(
@@ -173,8 +174,10 @@ class _BackgroundSettingsPageState extends State<BackgroundSettingsPage> {
               ),
               alignment: Alignment.center,
               child: _mode == 'default'
-                  ? const Text('デフォルト背景',
-                      style: TextStyle(color: Colors.black45))
+                  ? const Text(
+                      'デフォルト背景',
+                      style: TextStyle(color: Colors.black45),
+                    )
                   : null,
             ),
             const SizedBox(height: 20),
@@ -213,19 +216,23 @@ class _BackgroundSettingsPageState extends State<BackgroundSettingsPage> {
               const SizedBox(height: 20),
               Text(
                 _mode == 'gradient' ? 'カラー1' : 'カラー',
-                style:
-                    const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
                 children: _bgPalette
-                    .map((c) => _swatch(
-                          c,
-                          c.toARGB32() == _colorA.toARGB32(),
-                          () => setState(() => _colorA = c),
-                        ))
+                    .map(
+                      (c) => _swatch(
+                        c,
+                        c.toARGB32() == _colorA.toARGB32(),
+                        () => setState(() => _colorA = c),
+                      ),
+                    )
                     .toList(),
               ),
             ],
@@ -240,11 +247,13 @@ class _BackgroundSettingsPageState extends State<BackgroundSettingsPage> {
                 spacing: 10,
                 runSpacing: 10,
                 children: _bgPalette
-                    .map((c) => _swatch(
-                          c,
-                          c.toARGB32() == _colorB.toARGB32(),
-                          () => setState(() => _colorB = c),
-                        ))
+                    .map(
+                      (c) => _swatch(
+                        c,
+                        c.toARGB32() == _colorB.toARGB32(),
+                        () => setState(() => _colorB = c),
+                      ),
+                    )
                     .toList(),
               ),
             ],
@@ -290,8 +299,11 @@ class _ModeTab extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _ModeTab(
-      {required this.label, required this.selected, required this.onTap});
+  const _ModeTab({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {

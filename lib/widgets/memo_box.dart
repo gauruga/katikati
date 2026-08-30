@@ -88,7 +88,10 @@ class _MemoBoxState extends State<MemoBox> {
           borderRadius: BorderRadius.circular(12),
           boxShadow: const [
             BoxShadow(
-                color: Colors.black26, blurRadius: 6, offset: Offset(0, 3)),
+              color: Colors.black26,
+              blurRadius: 6,
+              offset: Offset(0, 3),
+            ),
           ],
         ),
         child: Column(

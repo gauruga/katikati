@@ -59,10 +59,7 @@ void main() {
     expect(find.text('0'), findsWidgets);
 
     final reset = tester.widget<TextButton>(
-      find.ancestor(
-        of: find.text('0にリセット'),
-        matching: find.byType(TextButton),
-      ),
+      find.ancestor(of: find.text('0にリセット'), matching: find.byType(TextButton)),
     );
     expect(reset.onPressed, isNull);
 
@@ -202,8 +199,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('プレミアム限定'), findsOneWidget);
-    expect(tester.widget<TextField>(find.byType(TextField).first).enabled,
-        isFalse);
+    expect(
+      tester.widget<TextField>(find.byType(TextField).first).enabled,
+      isFalse,
+    );
 
     await tester.tap(find.text('小役確率'));
     await tester.pumpAndSettle();

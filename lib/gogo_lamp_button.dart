@@ -6,11 +6,7 @@ class GogoLampButton extends StatefulWidget {
   final VoidCallback onPressed;
   final double size;
 
-  const GogoLampButton({
-    super.key,
-    required this.onPressed,
-    this.size = 64,
-  });
+  const GogoLampButton({super.key, required this.onPressed, this.size = 64});
 
   @override
   State<GogoLampButton> createState() => _GogoLampButtonState();

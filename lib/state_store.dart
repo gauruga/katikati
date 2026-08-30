@@ -29,8 +29,10 @@ class StateStore {
       'buttonLayout': prefs.getInt(_kButtonLayout) ?? 4,
       'premiumType': prefs.getString(_kPremiumType) ?? 'none',
       'layoutMode': prefs.getString(_kLayoutMode) ?? 'fixed',
-      'elapsedOpacity':
-          (prefs.getDouble(_kElapsedOpacity) ?? 1.0).clamp(0.0, 1.0),
+      'elapsedOpacity': (prefs.getDouble(_kElapsedOpacity) ?? 1.0).clamp(
+        0.0,
+        1.0,
+      ),
     };
   }
 

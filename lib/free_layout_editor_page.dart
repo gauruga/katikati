@@ -14,7 +14,10 @@ class FreeLayoutEditorPage extends StatefulWidget {
   // 下部カウントボタンの数（リセット時のデフォルト配置に使う）
   final int buttonCount;
   final Future<void> Function(
-      Map<String, Offset> positions, Map<String, ItemScale> scales) onSave;
+    Map<String, Offset> positions,
+    Map<String, ItemScale> scales,
+  )
+  onSave;
   final VoidCallback onUpgrade;
   final bool Function(String id)? isColorEditable;
   final void Function(String id)? onColorTap;
@@ -183,9 +186,7 @@ class _FreeLayoutEditorPageState extends State<FreeLayoutEditorPage> {
             TextField(
               controller: controller,
               autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'タイトル',
-              ),
+              decoration: const InputDecoration(labelText: 'タイトル'),
             ),
             if (widget.presetNames.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -220,9 +221,9 @@ class _FreeLayoutEditorPageState extends State<FreeLayoutEditorPage> {
     await _commit();
     await onSaveNamed(name);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('「$name」として保存しました')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('「$name」として保存しました')));
   }
 
   Future<void> _addMemo() async {
@@ -280,22 +281,10 @@ class _FreeLayoutEditorPageState extends State<FreeLayoutEditorPage> {
         ),
         title: Row(
           children: [
-            _barButton(
-              icon: Icons.check,
-              label: '完了',
-              onPressed: _done,
-            ),
-            _barButton(
-              icon: Icons.undo,
-              label: 'リセット',
-              onPressed: _reset,
-            ),
+            _barButton(icon: Icons.check, label: '完了', onPressed: _done),
+            _barButton(icon: Icons.undo, label: 'リセット', onPressed: _reset),
             if (widget.onAddMemo != null)
-              _barButton(
-                icon: Icons.add,
-                label: 'メモ帳',
-                onPressed: _addMemo,
-              ),
+              _barButton(icon: Icons.add, label: 'メモ帳', onPressed: _addMemo),
             if (widget.onSaveNamed != null)
               _barButton(
                 icon: Icons.bookmark_add_outlined,
@@ -312,26 +301,26 @@ class _FreeLayoutEditorPageState extends State<FreeLayoutEditorPage> {
               child: Padding(
                 padding: const EdgeInsets.all(10),
                 child: FreeCanvas(
-                itemIds: _itemIds,
-                positions: _positions,
-                scales: _scales,
-                editing: true,
-                buildContent: widget.buildContent,
-                onDragUpdate: (id, f) => setState(() {
-                  _positions[id] = f;
-                  _dirty = true;
-                }),
-                onScaleUpdate: (id, s) => setState(() {
-                  _scales[id] = s;
-                  _dirty = true;
-                }),
-                overlayTop: widget.previewOnly ? _buildPreviewBanner() : null,
-                isColorEditable: widget.isColorEditable,
-                onColorTap: widget.onColorTap,
-                isDeletable: widget.isDeletable,
-                onDelete: _deleteItem,
-                onItemDoubleTap: widget.onItemDoubleTap,
-                logicalSize: widget.canvasSize,
+                  itemIds: _itemIds,
+                  positions: _positions,
+                  scales: _scales,
+                  editing: true,
+                  buildContent: widget.buildContent,
+                  onDragUpdate: (id, f) => setState(() {
+                    _positions[id] = f;
+                    _dirty = true;
+                  }),
+                  onScaleUpdate: (id, s) => setState(() {
+                    _scales[id] = s;
+                    _dirty = true;
+                  }),
+                  overlayTop: widget.previewOnly ? _buildPreviewBanner() : null,
+                  isColorEditable: widget.isColorEditable,
+                  onColorTap: widget.onColorTap,
+                  isDeletable: widget.isDeletable,
+                  onDelete: _deleteItem,
+                  onItemDoubleTap: widget.onItemDoubleTap,
+                  logicalSize: widget.canvasSize,
                 ),
               ),
             ),
@@ -374,10 +363,7 @@ class _FreeLayoutEditorPageState extends State<FreeLayoutEditorPage> {
               style: TextStyle(fontSize: 12, color: Color(0xFF5D4037)),
             ),
           ),
-          TextButton(
-            onPressed: widget.onUpgrade,
-            child: const Text('アップグレード'),
-          ),
+          TextButton(onPressed: widget.onUpgrade, child: const Text('アップグレード')),
         ],
       ),
     );

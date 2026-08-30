@@ -23,10 +23,7 @@ class SpinCounterApp extends StatelessWidget {
         colorScheme: colorScheme,
         scaffoldBackgroundColor: const Color(0xFFF6F1FB),
         fontFamily: 'Roboto',
-        cardTheme: const CardThemeData(
-          elevation: 0,
-          margin: EdgeInsets.zero,
-        ),
+        cardTheme: const CardThemeData(elevation: 0, margin: EdgeInsets.zero),
       ),
       home: const HomePage(),
     );

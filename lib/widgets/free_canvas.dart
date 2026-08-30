@@ -70,7 +70,11 @@ class FreeCanvas extends StatelessWidget {
                 Positioned(top: 0, left: 0, right: 0, child: overlayTop!),
               if (overlayBottom != null)
                 Positioned(
-                    left: 16, right: 16, bottom: 16, child: overlayBottom!),
+                  left: 16,
+                  right: 16,
+                  bottom: 16,
+                  child: overlayBottom!,
+                ),
             ],
           ),
         );

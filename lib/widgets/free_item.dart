@@ -49,10 +49,14 @@ class FreeItem extends StatelessWidget {
     final pos = clampedPixelPosition(fraction, canvasSize, itemSize);
     final left = pos.dx;
     final top = pos.dy;
-    final maxLeft =
-        (canvasSize.width - itemSize.width).clamp(0.0, double.infinity);
-    final maxTop =
-        (canvasSize.height - itemSize.height).clamp(0.0, double.infinity);
+    final maxLeft = (canvasSize.width - itemSize.width).clamp(
+      0.0,
+      double.infinity,
+    );
+    final maxTop = (canvasSize.height - itemSize.height).clamp(
+      0.0,
+      double.infinity,
+    );
 
     final inner = IgnorePointer(ignoring: editing, child: child);
 
@@ -97,14 +101,18 @@ class FreeItem extends StatelessWidget {
                   final newLeft = (left + details.delta.dx).clamp(0.0, maxLeft);
                   final newTop = (top + details.delta.dy).clamp(0.0, maxTop);
                   final safeW = canvasSize.width == 0 ? 1.0 : canvasSize.width;
-                  final safeH = canvasSize.height == 0 ? 1.0 : canvasSize.height;
+                  final safeH = canvasSize.height == 0
+                      ? 1.0
+                      : canvasSize.height;
                   onDragUpdate(Offset(newLeft / safeW, newTop / safeH));
                 },
                 onPanEnd: (_) => onInteractionEnd?.call(),
                 child: Container(
                   decoration: BoxDecoration(
-                    border:
-                        Border.all(color: const Color(0xFF448AFF), width: 2),
+                    border: Border.all(
+                      color: const Color(0xFF448AFF),
+                      width: 2,
+                    ),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: content,
@@ -148,13 +156,16 @@ class FreeItem extends StatelessWidget {
                 color: const Color(0xFF1565C0),
                 size: 26,
                 onPanUpdate: (details) {
-                  final delta = (details.delta.dx / baseItemSize.width +
+                  final delta =
+                      (details.delta.dx / baseItemSize.width +
                           details.delta.dy / baseItemSize.height) /
                       2;
-                  onScaleUpdate(ItemScale(
-                    (scale.x + delta).clamp(kMinScale, kMaxScale),
-                    (scale.y + delta).clamp(kMinScale, kMaxScale),
-                  ));
+                  onScaleUpdate(
+                    ItemScale(
+                      (scale.x + delta).clamp(kMinScale, kMaxScale),
+                      (scale.y + delta).clamp(kMinScale, kMaxScale),
+                    ),
+                  );
                 },
               ),
             ),
@@ -215,18 +226,10 @@ class FreeItem extends StatelessWidget {
           ],
         ),
       );
-      return Positioned(
-        left: left - m,
-        top: top - m,
-        child: content,
-      );
+      return Positioned(left: left - m, top: top - m, child: content);
     }
 
-    return Positioned(
-      left: left,
-      top: top,
-      child: content,
-    );
+    return Positioned(left: left, top: top, child: content);
   }
 
   Widget _resizeHandle({
@@ -246,9 +249,7 @@ class FreeItem extends StatelessWidget {
           color: color,
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white, width: 2),
-          boxShadow: const [
-            BoxShadow(color: Colors.black26, blurRadius: 4),
-          ],
+          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 4)],
         ),
         child: Icon(icon, color: Colors.white, size: size * 0.55),
       ),

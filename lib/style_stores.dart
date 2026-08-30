@@ -20,9 +20,9 @@ class ItemStyle {
   }
 
   Map<String, dynamic> toJson() => {
-        'mode': mode,
-        'colors': colors.map((c) => c.toARGB32()).toList(),
-      };
+    'mode': mode,
+    'colors': colors.map((c) => c.toARGB32()).toList(),
+  };
 
   factory ItemStyle.fromJson(Map<String, dynamic> json) {
     return ItemStyle(
@@ -76,10 +76,10 @@ class BackgroundSetting {
   });
 
   Map<String, dynamic> toJson() => {
-        'mode': mode,
-        'colors': colors.map((c) => c.toARGB32()).toList(),
-        'imageBase64': imageBase64,
-      };
+    'mode': mode,
+    'colors': colors.map((c) => c.toARGB32()).toList(),
+    'imageBase64': imageBase64,
+  };
 
   factory BackgroundSetting.fromJson(Map<String, dynamic> json) {
     return BackgroundSetting(

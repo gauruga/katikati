@@ -54,7 +54,8 @@ class FixedLayout {
 
   static double get startRowHeight => ItemSizes.startBox.height;
   static double get controlRowHeight => ItemSizes.lampBtn.height;
-  static double get mainRowHeight => ItemSizes.mainCounter.height + elapsedHeight;
+  static double get mainRowHeight =>
+      ItemSizes.mainCounter.height + elapsedHeight;
 
   /// 下部グリッドより上の合計高さ。
   static double get topHeight =>
@@ -73,9 +74,7 @@ class ItemScale {
   final double y;
 
   const ItemScale(this.x, this.y);
-  const ItemScale.uniform(double v)
-      : x = v,
-        y = v;
+  const ItemScale.uniform(double v) : x = v, y = v;
 
   ItemScale copyWith({double? x, double? y}) =>
       ItemScale(x ?? this.x, y ?? this.y);
@@ -149,7 +148,11 @@ Map<String, Rect> fixedLayoutRects(Size canvas, int buttonCount) {
   final startRowH = FixedLayout.startRowHeight;
   map['start_box'] = Rect.fromLTWH(pad, y, startW, startRowH);
   map['total_box'] = Rect.fromLTWH(
-      pad + startW + FixedLayout.startRowGap, y, totalW, startRowH);
+    pad + startW + FixedLayout.startRowGap,
+    y,
+    totalW,
+    startRowH,
+  );
   y += startRowH + FixedLayout.gapAfterStart;
 
   // 再生 / ランプ / 停止（中央寄せ）
@@ -157,20 +160,33 @@ Map<String, Rect> fixedLayoutRects(Size canvas, int buttonCount) {
   const lamp = ItemSizes.lampBtn;
   const stop = ItemSizes.stopBtn;
   final controlH = FixedLayout.controlRowHeight;
-  final controlW = play.width +
+  final controlW =
+      play.width +
       FixedLayout.controlGap +
       lamp.width +
       FixedLayout.controlGap +
       stop.width;
   double x = (canvas.width - controlW) / 2;
-  map['play_btn'] =
-      Rect.fromLTWH(x, y + (controlH - play.height) / 2, play.width, play.height);
+  map['play_btn'] = Rect.fromLTWH(
+    x,
+    y + (controlH - play.height) / 2,
+    play.width,
+    play.height,
+  );
   x += play.width + FixedLayout.controlGap;
-  map['lamp_btn'] =
-      Rect.fromLTWH(x, y + (controlH - lamp.height) / 2, lamp.width, lamp.height);
+  map['lamp_btn'] = Rect.fromLTWH(
+    x,
+    y + (controlH - lamp.height) / 2,
+    lamp.width,
+    lamp.height,
+  );
   x += lamp.width + FixedLayout.controlGap;
-  map['stop_btn'] =
-      Rect.fromLTWH(x, y + (controlH - stop.height) / 2, stop.width, stop.height);
+  map['stop_btn'] = Rect.fromLTWH(
+    x,
+    y + (controlH - stop.height) / 2,
+    stop.width,
+    stop.height,
+  );
   y += controlH + FixedLayout.gapAfterControl;
 
   // 増減ボタン列 + メインカウンタ
@@ -179,9 +195,18 @@ Map<String, Rect> fixedLayoutRects(Size canvas, int buttonCount) {
   final mainRowH = FixedLayout.mainRowHeight;
   final adjColH = adj.height * 3 + FixedLayout.adjustGap * 2;
   final mainRowW =
-      adj.width + FixedLayout.mainGap + main.width + FixedLayout.mainGap + adj.width;
+      adj.width +
+      FixedLayout.mainGap +
+      main.width +
+      FixedLayout.mainGap +
+      adj.width;
   final leftX = (canvas.width - mainRowW) / 2;
-  final rightX = leftX + adj.width + FixedLayout.mainGap + main.width + FixedLayout.mainGap;
+  final rightX =
+      leftX +
+      adj.width +
+      FixedLayout.mainGap +
+      main.width +
+      FixedLayout.mainGap;
   final adjY = y + (mainRowH - adjColH) / 2;
   const decIds = ['dec_100', 'dec_10', 'dec_1'];
   const incIds = ['inc_100', 'inc_10', 'inc_1'];
@@ -199,8 +224,10 @@ Map<String, Rect> fixedLayoutRects(Size canvas, int buttonCount) {
   y += mainRowH + FixedLayout.gapAfterMain;
 
   // 下部カウントボタン（残りの高さを敷き詰める）
-  final gridH =
-      (canvas.height - y - FixedLayout.bottomGap).clamp(60.0, double.infinity);
+  final gridH = (canvas.height - y - FixedLayout.bottomGap).clamp(
+    60.0,
+    double.infinity,
+  );
   _addGridRects(map, buttonCount, y, gridH, pad, contentW);
   if (buttonCount < kMaxCounterButtons) {
     // 非表示のボタンにも位置を用意しておく（個数を増やしたときに左上に固まらないように）
@@ -230,8 +257,12 @@ void _addGridRects(
     final cellW = (contentW - (n - 1) * gap) / n;
     final rowY = top + r * (rowH + gap);
     for (int c = 0; c < n; c++) {
-      map['counter_$index'] =
-          Rect.fromLTWH(pad + c * (cellW + gap), rowY, cellW, rowH);
+      map['counter_$index'] = Rect.fromLTWH(
+        pad + c * (cellW + gap),
+        rowY,
+        cellW,
+        rowH,
+      );
       index++;
     }
   }
@@ -258,7 +289,10 @@ Map<String, ItemScale> defaultScales({
 }) {
   return fixedLayoutRects(canvas, buttonCount).map((id, r) {
     final base = ItemSizes.forId(id);
-    return MapEntry(id, ItemScale(r.width / base.width, r.height / base.height));
+    return MapEntry(
+      id,
+      ItemScale(r.width / base.width, r.height / base.height),
+    );
   });
 }
 
@@ -293,7 +327,7 @@ class LayoutStore {
   static const _key = 'free_layout_v4';
 
   Future<({Map<String, Offset> positions, Map<String, ItemScale> scales})>
-      load() async {
+  load() async {
     final positions = <String, Offset>{};
     final scales = <String, ItemScale>{};
     final prefs = await SharedPreferences.getInstance();
@@ -369,15 +403,15 @@ class LayoutStore {
 }
 
 /// FreeItem のクランプ済みピクセル位置を計算する共通ロジック。
-Offset clampedPixelPosition(
-  Offset fraction,
-  Size canvasSize,
-  Size itemSize,
-) {
-  final maxLeft =
-      (canvasSize.width - itemSize.width).clamp(0.0, double.infinity);
-  final maxTop =
-      (canvasSize.height - itemSize.height).clamp(0.0, double.infinity);
+Offset clampedPixelPosition(Offset fraction, Size canvasSize, Size itemSize) {
+  final maxLeft = (canvasSize.width - itemSize.width).clamp(
+    0.0,
+    double.infinity,
+  );
+  final maxTop = (canvasSize.height - itemSize.height).clamp(
+    0.0,
+    double.infinity,
+  );
   final left = (fraction.dx * canvasSize.width).clamp(0.0, maxLeft);
   final top = (fraction.dy * canvasSize.height).clamp(0.0, maxTop);
   return Offset(left, top);
@@ -410,32 +444,34 @@ class LayoutPreset {
   });
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'items': {
-          for (final id in positions.keys)
-            id: [
-              positions[id]!.dx,
-              positions[id]!.dy,
-              (scales[id] ?? const ItemScale.uniform(1.0)).x,
-              (scales[id] ?? const ItemScale.uniform(1.0)).y,
-            ],
-        },
-        'buttonCount': buttonCount,
-        'memoIds': memoIds,
-        'memoTitles': memoTitles,
-        'memoTexts': memoTexts,
-        'memoCollapsed': memoCollapsed,
-        'excludedIds': excludedIds,
-        'savedAt': savedAt,
-      };
+    'name': name,
+    'items': {
+      for (final id in positions.keys)
+        id: [
+          positions[id]!.dx,
+          positions[id]!.dy,
+          (scales[id] ?? const ItemScale.uniform(1.0)).x,
+          (scales[id] ?? const ItemScale.uniform(1.0)).y,
+        ],
+    },
+    'buttonCount': buttonCount,
+    'memoIds': memoIds,
+    'memoTitles': memoTitles,
+    'memoTexts': memoTexts,
+    'memoCollapsed': memoCollapsed,
+    'excludedIds': excludedIds,
+    'savedAt': savedAt,
+  };
 
   factory LayoutPreset.fromJson(Map<String, dynamic> json) {
     final positions = <String, Offset>{};
     final scales = <String, ItemScale>{};
     (json['items'] as Map<String, dynamic>? ?? {}).forEach((id, v) {
       if (v is List && v.length >= 2) {
-        positions[id] =
-            Offset((v[0] as num).toDouble(), (v[1] as num).toDouble());
+        positions[id] = Offset(
+          (v[0] as num).toDouble(),
+          (v[1] as num).toDouble(),
+        );
         final sx = v.length >= 3 ? (v[2] as num).toDouble() : 1.0;
         final sy = v.length >= 4 ? (v[3] as num).toDouble() : sx;
         scales[id] = ItemScale(sx, sy);

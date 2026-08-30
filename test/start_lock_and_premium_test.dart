@@ -5,9 +5,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:spin_counter/main.dart';
 import 'package:spin_counter/widgets/labeled_box.dart';
 
-Finder _startBox() => find.byWidgetPredicate(
-      (w) => w is LabeledBox && w.label == '開始ゲーム数',
-    );
+Finder _startBox() =>
+    find.byWidgetPredicate((w) => w is LabeledBox && w.label == '開始ゲーム数');
 
 Future<void> _launch(WidgetTester tester, Map<String, Object> prefs) async {
   SharedPreferences.setMockInitialValues(prefs);
@@ -38,8 +37,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // 解除後は再入力できる
-    expect(find.descendant(of: _startBox(), matching: find.byType(TextField)),
-        findsOneWidget);
+    expect(
+      find.descendant(of: _startBox(), matching: find.byType(TextField)),
+      findsOneWidget,
+    );
   });
 
   testWidgets('経過秒数の濃さは非課金だと課金シートに誘導される', (tester) async {

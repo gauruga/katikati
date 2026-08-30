@@ -23,13 +23,9 @@ class _Harness extends StatelessWidget {
                   builder: (_) => FreeLayoutEditorPage(
                     itemIds: const ['counter_0'],
                     initialPositions: const {'counter_0': Offset(0.1, 0.1)},
-                    initialScales: const {
-                      'counter_0': ItemScale.uniform(1.0),
-                    },
-                    buildContent: (id, size) => const ColoredBox(
-                      key: _itemKey,
-                      color: Colors.blue,
-                    ),
+                    initialScales: const {'counter_0': ItemScale.uniform(1.0)},
+                    buildContent: (id, size) =>
+                        const ColoredBox(key: _itemKey, color: Colors.blue),
                     previewOnly: false,
                     buttonCount: 1,
                     canvasSize: const Size(400, 800),
@@ -97,10 +93,14 @@ void main() {
   testWidgets('完了を押すと保存して閉じる', (tester) async {
     var saveCount = 0;
     Map<String, Offset>? savedPositions;
-    await tester.pumpWidget(_Harness(onSave: (p, s) {
-      saveCount++;
-      savedPositions = p;
-    }));
+    await tester.pumpWidget(
+      _Harness(
+        onSave: (p, s) {
+          saveCount++;
+          savedPositions = p;
+        },
+      ),
+    );
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 

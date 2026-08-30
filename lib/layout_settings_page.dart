@@ -125,10 +125,7 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: [
-          _buildFixedTab(),
-          _buildFreeTab(),
-        ],
+        children: [_buildFixedTab(), _buildFreeTab()],
       ),
     );
   }
@@ -186,17 +183,13 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
                         setState(() => _mode = 'fixed');
                         widget.onUseFixedLayout();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('固定レイアウトに戻しました'),
-                          ),
+                          const SnackBar(content: Text('固定レイアウトに戻しました')),
                         );
                       },
-                icon: Icon(_mode == 'fixed'
-                    ? Icons.check
-                    : Icons.grid_view_rounded),
-                label: Text(
-                  _mode == 'fixed' ? '固定レイアウトを使用中' : '固定レイアウトに戻す',
+                icon: Icon(
+                  _mode == 'fixed' ? Icons.check : Icons.grid_view_rounded,
                 ),
+                label: Text(_mode == 'fixed' ? '固定レイアウトを使用中' : '固定レイアウトに戻す'),
               ),
             ),
           ],
@@ -220,8 +213,7 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.workspace_premium,
-                      color: Color(0xFFFFA000)),
+                  const Icon(Icons.workspace_premium, color: Color(0xFFFFA000)),
                   const SizedBox(width: 10),
                   const Expanded(
                     child: Text(
@@ -258,9 +250,9 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
               ),
               onPressed: _openDefaultEditor,
               icon: const Icon(Icons.restart_alt),
-              label: Text(widget.isPremium
-                  ? 'デフォルト配置から編集する'
-                  : '試してみる（デフォルト配置・プレビュー）'),
+              label: Text(
+                widget.isPremium ? 'デフォルト配置から編集する' : '試してみる（デフォルト配置・プレビュー）',
+              ),
             ),
           ),
           _sectionDivider(),
@@ -274,9 +266,9 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
               ),
               onPressed: () => widget.onOpenFreeEditor(false),
               icon: const Icon(Icons.open_with),
-              label: Text(widget.isPremium
-                  ? '今の配置から編集する'
-                  : '試してみる（今の配置・プレビュー）'),
+              label: Text(
+                widget.isPremium ? '今の配置から編集する' : '試してみる（今の配置・プレビュー）',
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -313,9 +305,9 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
   void _applyFixedCount() {
     widget.onButtonCountChanged(_fixedCount);
     _appliedCount = _fixedCount;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('下部ボタンを$_fixedCount個にしました')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('下部ボタンを$_fixedCount個にしました')));
     Navigator.pop(context);
   }
 
@@ -348,10 +340,14 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
           Card(
             margin: const EdgeInsets.only(bottom: 8),
             child: ListTile(
-              leading: const Icon(Icons.dashboard_customize_outlined,
-                  color: Color(0xFF7C4DFF)),
-              title: Text(preset.name,
-                  style: const TextStyle(fontWeight: FontWeight.w600)),
+              leading: const Icon(
+                Icons.dashboard_customize_outlined,
+                color: Color(0xFF7C4DFF),
+              ),
+              title: Text(
+                preset.name,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
               subtitle: Text(
                 'ボタン${preset.buttonCount}個'
                 '${preset.memoIds.isEmpty ? '' : ' / メモ${preset.memoIds.length}個'}',
@@ -376,9 +372,9 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
       _fixedCount = preset.buttonCount;
       _freeCount = preset.buttonCount;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('「${preset.name}」を呼び出しました')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('「${preset.name}」を呼び出しました')));
     Navigator.pop(context);
   }
 
