@@ -255,3 +255,36 @@ class CounterProbStore {
     await prefs.remove(_key);
   }
 }
+
+/// 下部ボタンに付けた名前（'counter_0' → 'ベル' など）。
+///
+/// 未設定のボタンは持たない。表示側で「ボタンN」に読み替える。
+class CounterNameStore {
+  static const _key = 'counter_names_v1';
+
+  Future<Map<String, String>> load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_key);
+    if (raw == null) return {};
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return decoded.map((k, v) => MapEntry(k, '$v'));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> save(Map<String, String> names) async {
+    final prefs = await SharedPreferences.getInstance();
+    final trimmed = <String, String>{};
+    names.forEach((k, v) {
+      if (v.trim().isNotEmpty) trimmed[k] = v.trim();
+    });
+    await prefs.setString(_key, jsonEncode(trimmed));
+  }
+
+  Future<void> reset() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_key);
+  }
+}

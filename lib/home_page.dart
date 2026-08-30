@@ -27,7 +27,8 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage>
+    with SingleTickerProviderStateMixin {
   final _store = StateStore();
   final _layoutStore = LayoutStore();
   final _itemStyleStore = ItemStyleStore();
@@ -35,6 +36,7 @@ class _HomePageState extends State<HomePage> {
   final _memoStore = MemoStore();
   final _presetStore = LayoutPresetStore();
   final _counterProbStore = CounterProbStore();
+  final _counterNameStore = CounterNameStore();
 
   // ---- 状態 ----
   int _startCount = 0;
@@ -70,6 +72,8 @@ class _HomePageState extends State<HomePage> {
   bool _counterHintShown = false;
   // ボタンごとの小役確率メモ（'counter_0' → 設定6〜設定1 の分母）
   Map<String, List<String>> _counterProbs = {};
+  // ボタンごとに付けた名前（'counter_0' → 'ベル' など）
+  Map<String, String> _counterNames = {};
 
   Timer? _timer;
   Timer? _progressTimer;
@@ -77,6 +81,15 @@ class _HomePageState extends State<HomePage> {
   double _elapsedSeconds = 0;
 
   final _startController = TextEditingController();
+
+  // ---- 押したときの画面フラッシュ ----
+  // 押したボタンの色で画面全体を一瞬染めて、反応があったことを分かりやすくする。
+  late final AnimationController _flash = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+    value: 1, // 起動直後に光らないよう、最初から終了状態にしておく
+  );
+  Color _flashColor = Colors.transparent;
   bool _loaded = false;
 
   static const _cycleMs = 4100;
@@ -103,9 +116,11 @@ class _HomePageState extends State<HomePage> {
     final savedLayoutCount = await _layoutStore.loadButtonCount();
     final counterHintShown = await _store.loadCounterHintShown();
     final counterProbs = await _counterProbStore.load();
+    final counterNames = await _counterNameStore.load();
     setState(() {
       _counterHintShown = counterHintShown;
       _counterProbs = counterProbs;
+      _counterNames = counterNames;
       _startCount = data['startCount'];
       _startEntered = data['startEntered'];
       _mainCount = data['mainCount'];
@@ -162,6 +177,7 @@ class _HomePageState extends State<HomePage> {
     _timer?.cancel();
     _progressTimer?.cancel();
     _startController.dispose();
+    _flash.dispose();
     super.dispose();
   }
 
@@ -310,34 +326,16 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _editMainCountDialog() async {
-    final controller = TextEditingController(text: '$_mainCount');
-    final result = await showDialog<int>(
+    final text = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('数字を編集'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('キャンセル'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final v = int.tryParse(controller.text) ?? 0;
-              Navigator.pop(ctx, v);
-            },
-            child: const Text('OK'),
-          ),
-        ],
+      builder: (ctx) => _TextInputDialog(
+        title: '数字を編集',
+        initial: '$_mainCount',
+        confirmLabel: 'OK',
+        numberOnly: true,
       ),
     );
+    final result = text == null ? null : (int.tryParse(text) ?? 0);
     if (result != null) {
       setState(() {
         _mainCount = result.clamp(0, 1 << 31);
@@ -351,6 +349,8 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       _buttonCounts[index] = _buttonCounts[index] + 1;
     });
+    _flashColor = _resolvedColors('counter_$index').first;
+    _flash.forward(from: 0);
     _persist();
     _showCounterHintOnce();
   }
@@ -420,7 +420,13 @@ class _HomePageState extends State<HomePage> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildProbMemo(ctx, index, accent, probs),
+                        _buildProbMemo(
+                          ctx,
+                          index,
+                          accent,
+                          probs,
+                          () => setSheetState(() {}),
+                        ),
                         const SizedBox(height: 18),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -524,6 +530,7 @@ class _HomePageState extends State<HomePage> {
     int index,
     Color accent,
     List<String> values,
+    VoidCallback onRenamed,
   ) {
     final block = Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
@@ -537,25 +544,49 @@ class _HomePageState extends State<HomePage> {
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: accent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'ボタン${index + 1}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
+              // 名前のチップ。課金中はタップで付け替えられる。
+              GestureDetector(
+                onTap: _isPremium
+                    ? () async {
+                        await _renameCounter(ctx, index);
+                        onRenamed();
+                      }
+                    : null,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(8, 3, 6, 3),
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _counterTitle(index),
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      if (_isPremium) ...[
+                        const SizedBox(width: 4),
+                        const Icon(Icons.edit, size: 11, color: Colors.white70),
+                      ],
+                    ],
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              const Text(
-                '小役確率',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              const Flexible(
+                child: Text(
+                  '小役確率',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                ),
               ),
               const Spacer(),
               if (!_isPremium) ...[
@@ -590,36 +621,17 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<int?> _promptCounterValue(BuildContext ctx, int current) async {
-    final controller = TextEditingController(text: '$current');
-    final result = await showDialog<int>(
+    final text = await showDialog<String>(
       context: ctx,
-      builder: (dialogCtx) => AlertDialog(
-        title: const Text('回数を入力'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('キャンセル'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(
-              dialogCtx,
-              int.tryParse(controller.text) ?? current,
-            ),
-            child: const Text('決定'),
-          ),
-        ],
+      builder: (dialogCtx) => _TextInputDialog(
+        title: '回数を入力',
+        initial: '$current',
+        confirmLabel: '決定',
+        numberOnly: true,
       ),
     );
-    controller.dispose();
-    return result;
+    if (text == null) return null;
+    return int.tryParse(text) ?? current;
   }
 
   Future<bool> _confirmCounterReset(
@@ -631,7 +643,7 @@ class _HomePageState extends State<HomePage> {
       context: ctx,
       builder: (dialogCtx) => AlertDialog(
         title: const Text('0に戻しますか？'),
-        content: Text('ボタン${index + 1} の回数（$count）を0に戻します。'),
+        content: Text('${_counterTitle(index)} の回数（$count）を0に戻します。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx, false),
@@ -645,6 +657,39 @@ class _HomePageState extends State<HomePage> {
       ),
     );
     return ok == true;
+  }
+
+  /// ボタンに付けた名前。未設定なら null。
+  String? _counterLabel(int index) {
+    final v = _counterNames['counter_$index']?.trim();
+    return (v == null || v.isEmpty) ? null : v;
+  }
+
+  /// パネルの見出しなどで使う表示名。未設定なら「ボタンN」。
+  String _counterTitle(int index) => _counterLabel(index) ?? 'ボタン${index + 1}';
+
+  Future<void> _renameCounter(BuildContext ctx, int index) async {
+    final input = await showDialog<String>(
+      context: ctx,
+      builder: (d) => _TextInputDialog(
+        title: 'ボタンの名前',
+        initial: _counterLabel(index) ?? '',
+        hintText: 'ベル / チェリー など',
+        confirmLabel: '決定',
+      ),
+    );
+    if (input == null) return;
+    final name = input.trim();
+    final id = 'counter_$index';
+    setState(() {
+      _counterNames = {..._counterNames};
+      if (name.isEmpty) {
+        _counterNames.remove(id); // 空にしたら「ボタンN」に戻す
+      } else {
+        _counterNames[id] = name;
+      }
+    });
+    await _counterNameStore.save(_counterNames);
   }
 
   String _ratioText(int index) {
@@ -676,23 +721,26 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
-    if (confirmed == true) {
-      _timer?.cancel();
-      _progressTimer?.cancel();
-      _playStartedAt = null;
-      setState(() {
-        _startCount = 0;
-        _startEntered = false;
-        _mainCount = 0;
-        _total = 0;
-        _buttonCounts = List.filled(kMaxCounterButtons, 0);
-        _isPlaying = false;
-        _elapsedSeconds = 0;
-        _startController.text = '';
-        _lastLampDiff = null;
-      });
-      _persist();
-    }
+    if (confirmed == true) _resetCounters();
+  }
+
+  /// 数字だけをゼロに戻す。レイアウトや色などの設定はそのまま残す。
+  void _resetCounters() {
+    _timer?.cancel();
+    _progressTimer?.cancel();
+    _playStartedAt = null;
+    setState(() {
+      _startCount = 0;
+      _startEntered = false;
+      _mainCount = 0;
+      _total = 0;
+      _buttonCounts = List.filled(kMaxCounterButtons, 0);
+      _isPlaying = false;
+      _elapsedSeconds = 0;
+      _startController.text = '';
+      _lastLampDiff = null;
+    });
+    _persist();
   }
 
   // ---- 移動(レイアウト変更) ----
@@ -707,13 +755,6 @@ class _HomePageState extends State<HomePage> {
           initialButtonCount: _buttonLayout,
           isPremium: _isPremium,
           layoutMode: _layoutMode,
-          presets: _presets,
-          onApplyPreset: _applyPreset,
-          onDeletePreset: (name) async {
-            final presets = await _presetStore.delete(name);
-            setState(() => _presets = presets);
-            return presets;
-          },
           onUseFixedLayout: () {
             setState(() => _layoutMode = 'fixed');
             _persist();
@@ -973,11 +1014,19 @@ class _HomePageState extends State<HomePage> {
   // ---- レイアウトの保存／呼び出し ----
 
   /// 現在の自由配置レイアウト一式に名前を付けて保存する。
-  Future<void> _saveCurrentAsPreset(String name) async {
+  ///
+  /// useResolved=true では、固定レイアウト中や未配置のアイテムがあっても
+  /// 保存できるよう、既定位置で補完した配置を保存する（メニューからの保存用）。
+  /// 保存しても今の画面の状態は変わらない。
+  Future<void> _saveCurrentAsPreset(
+    String name, {
+    bool useResolved = false,
+  }) async {
+    final resolved = useResolved ? _resolveFreeLayout(false) : null;
     final preset = LayoutPreset(
       name: name,
-      positions: Map.of(_freePositions),
-      scales: Map.of(_freeScales),
+      positions: Map.of(resolved?.positions ?? _freePositions),
+      scales: Map.of(resolved?.scales ?? _freeScales),
       buttonCount: _buttonLayout,
       memoIds: List.of(_memoIds),
       memoTitles: Map.of(_memoTitles),
@@ -1012,6 +1061,237 @@ class _HomePageState extends State<HomePage> {
     await _memoStore.saveTexts(_memoTexts);
     await _memoStore.saveCollapsed(_memoCollapsed);
     await _persist();
+  }
+
+  /// メニューから開くレイアウトの保存／呼び出し（プレミアム限定）。
+  /// 配置・ボタン数・メモだけを扱い、カウンターの数字は保存しない。
+  Future<void> _openPresetSheet() async {
+    Navigator.pop(context); // close drawer
+    if (!_isPremium) {
+      await _openPremiumSheet();
+      return;
+    }
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: StatefulBuilder(
+            builder: (ctx, setSheetState) {
+              return SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'レイアウトの保存 / 呼び出し',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      const Text(
+                        '配置・ボタン数・メモを保存します。'
+                        'カウンターの数字は保存されません。',
+                        style: TextStyle(fontSize: 12, color: Colors.black54),
+                      ),
+                      const SizedBox(height: 16),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFF7C4DFF),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: () async {
+                          await _savePresetFromMenu(ctx);
+                          setSheetState(() {});
+                        },
+                        icon: const Icon(Icons.save_outlined, size: 18),
+                        label: const Text('今の配置を保存'),
+                      ),
+                      const SizedBox(height: 18),
+                      const Text(
+                        '保存したレイアウト',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      if (_presets.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          child: Text(
+                            'まだ保存されていません。',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.black38,
+                            ),
+                          ),
+                        ),
+                      for (final preset in _presets)
+                        Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          elevation: 0,
+                          color: const Color(0xFFF7F3FC),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: const BorderSide(color: Color(0xFFE7DDF5)),
+                          ),
+                          child: ListTile(
+                            title: Text(
+                              preset.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
+                            ),
+                            subtitle: Text(
+                              'ボタン${preset.buttonCount}個'
+                              '${preset.memoIds.isEmpty ? '' : ' / メモ${preset.memoIds.length}個'}',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            trailing: IconButton(
+                              icon: const Icon(
+                                Icons.delete_outline,
+                                color: Colors.black45,
+                              ),
+                              onPressed: () async {
+                                await _confirmDeletePreset(ctx, preset);
+                                setSheetState(() {});
+                              },
+                            ),
+                            onTap: () => _confirmApplyPreset(ctx, preset),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  /// メニューからの保存。名前を聞き、同名があれば上書き確認する。
+  Future<void> _savePresetFromMenu(BuildContext ctx) async {
+    final input = await showDialog<String>(
+      context: ctx,
+      builder: (d) => _TextInputDialog(
+        title: '今の配置を保存',
+        initial: 'レイアウト${_presets.length + 1}',
+        hintText: '機種名など',
+        confirmLabel: '保存',
+      ),
+    );
+    final name = input?.trim();
+    if (name == null || name.isEmpty) return;
+
+    if (_presets.any((p) => p.name == name)) {
+      if (!ctx.mounted) return;
+      final overwrite = await showDialog<bool>(
+        context: ctx,
+        builder: (d) => AlertDialog(
+          title: Text('「$name」を上書きしますか？'),
+          content: const Text('同じ名前の保存があります。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(d, false),
+              child: const Text('キャンセル'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(d, true),
+              child: const Text('上書きする'),
+            ),
+          ],
+        ),
+      );
+      if (overwrite != true) return;
+    }
+
+    await _saveCurrentAsPreset(name, useResolved: true);
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('「$name」を保存しました')));
+  }
+
+  /// 呼び出し。数字をリセットするかどうかをここで確認する。
+  Future<void> _confirmApplyPreset(
+    BuildContext ctx,
+    LayoutPreset preset,
+  ) async {
+    final choice = await showDialog<String>(
+      context: ctx,
+      builder: (d) => AlertDialog(
+        title: Text('「${preset.name}」を呼び出しますか？'),
+        content: const Text(
+          '配置・ボタン数・メモが保存した状態に戻ります。\n\n'
+          'カウンターの数字（開始ゲーム数・大きい数字・合計・下部ボタン）は'
+          'どうしますか？',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(d),
+            child: const Text('キャンセル'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(d, 'keep'),
+            child: const Text('そのまま'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(d, 'reset'),
+            child: const Text('リセットする'),
+          ),
+        ],
+      ),
+    );
+    if (choice == null) return;
+
+    _stopPlayIfNeeded();
+    await _applyPreset(preset);
+    if (choice == 'reset') _resetCounters();
+    if (ctx.mounted) Navigator.pop(ctx); // close sheet
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('「${preset.name}」を呼び出しました')));
+  }
+
+  Future<void> _confirmDeletePreset(
+    BuildContext ctx,
+    LayoutPreset preset,
+  ) async {
+    final ok = await showDialog<bool>(
+      context: ctx,
+      builder: (d) => AlertDialog(
+        title: Text('「${preset.name}」を削除しますか？'),
+        content: const Text('この操作は取り消せません。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(d, false),
+            child: const Text('キャンセル'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(d, true),
+            child: const Text('削除する'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final presets = await _presetStore.delete(preset.name);
+    if (!mounted) return;
+    setState(() => _presets = presets);
   }
 
   // ---- 背景変更 ----
@@ -1224,6 +1504,8 @@ class _HomePageState extends State<HomePage> {
                     text: '経過秒数（0.000〜4.100）表示の濃さを調整できる',
                   ),
                   const _PremiumFeatureRow(text: 'ボタンごとに設定1〜6の小役確率をメモできる'),
+                  const _PremiumFeatureRow(text: 'ボタンに「ベル」「チェリー」など名前を付けられる'),
+                  const _PremiumFeatureRow(text: 'レイアウトを名前を付けて保存し、すぐ呼び出せる'),
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
@@ -1329,25 +1611,47 @@ class _HomePageState extends State<HomePage> {
 
     final useFreeLayout = _layoutMode == 'free' && _isPremium;
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      drawer: _buildDrawer(context),
-      onDrawerChanged: (isOpened) {
-        if (isOpened) _stopPlayIfNeeded();
-      },
-      body: Container(
-        decoration: _backgroundDecoration(),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildTopBar(context),
-              Expanded(
-                child: useFreeLayout ? _buildFreeCanvas() : _buildFixedLayout(),
+    return Stack(
+      children: [
+        Scaffold(
+          backgroundColor: Colors.transparent,
+          drawer: _buildDrawer(context),
+          onDrawerChanged: (isOpened) {
+            if (isOpened) _stopPlayIfNeeded();
+          },
+          body: Container(
+            decoration: _backgroundDecoration(),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  _buildTopBar(context),
+                  Expanded(
+                    child: useFreeLayout
+                        ? _buildFreeCanvas()
+                        : _buildFixedLayout(),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
-      ),
+        // 連打を邪魔しないよう、タップは素通しさせる
+        Positioned.fill(
+          child: IgnorePointer(
+            child: AnimatedBuilder(
+              animation: _flash,
+              builder: (context, _) {
+                final t = 1 - Curves.easeOut.transform(_flash.value);
+                if (t <= 0.01) return const SizedBox.shrink();
+                return ColoredBox(
+                  key: const ValueKey('tap_flash'),
+                  color: _flashColor.withValues(alpha: 0.26 * t),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1675,6 +1979,7 @@ class _HomePageState extends State<HomePage> {
     return CounterButton(
       count: _buttonCounts[index],
       ratioText: _ratioText(index),
+      label: _counterLabel(index),
       gradientColors: _resolvedColors('counter_$index'),
       onPressed: () => _incrementButton(index),
       onLongPress: () => _openCounterAdjustSheet(index),
@@ -1900,93 +2205,213 @@ class _HomePageState extends State<HomePage> {
                 ],
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.grid_view_rounded),
-              title: const Text('レイアウト変更'),
-              onTap: _openLayoutSettings,
-            ),
-            ListTile(
-              leading: Icon(
-                Icons.wallpaper_outlined,
-                color: _isPremium ? null : Colors.black38,
-              ),
-              title: Row(
+            Expanded(
+              // 項目が増えても低い画面で溢れないようにスクロールさせる。
+              child: ListView(
+                padding: EdgeInsets.zero,
                 children: [
-                  const Text('背景変更'),
-                  if (!_isPremium) ...[
-                    const SizedBox(width: 6),
-                    const Icon(Icons.lock, size: 14, color: Colors.black38),
-                  ],
+                  ListTile(
+                    leading: const Icon(Icons.grid_view_rounded),
+                    title: const Text('レイアウト変更'),
+                    onTap: _openLayoutSettings,
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      Icons.bookmark_outline,
+                      color: _isPremium ? null : Colors.black38,
+                    ),
+                    title: Row(
+                      children: [
+                        const Text('レイアウトの保存'),
+                        if (!_isPremium) ...[
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.lock,
+                            size: 14,
+                            color: Colors.black38,
+                          ),
+                        ],
+                      ],
+                    ),
+                    subtitle: Text(
+                      !_isPremium
+                          ? 'プレミアム限定'
+                          : _presets.isEmpty
+                          ? 'まだ保存なし'
+                          : '保存 ${_presets.length} 件',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    onTap: _openPresetSheet,
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      Icons.wallpaper_outlined,
+                      color: _isPremium ? null : Colors.black38,
+                    ),
+                    title: Row(
+                      children: [
+                        const Text('背景変更'),
+                        if (!_isPremium) ...[
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.lock,
+                            size: 14,
+                            color: Colors.black38,
+                          ),
+                        ],
+                      ],
+                    ),
+                    onTap: _openBackgroundSettings,
+                  ),
+                  ListTile(
+                    leading: Icon(
+                      Icons.timer_outlined,
+                      color: _isPremium ? null : Colors.black38,
+                    ),
+                    title: Row(
+                      children: [
+                        const Text('経過秒数の濃さ'),
+                        if (!_isPremium) ...[
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.lock,
+                            size: 14,
+                            color: Colors.black38,
+                          ),
+                        ],
+                      ],
+                    ),
+                    subtitle: Text(
+                      !_isPremium
+                          ? 'プレミアム限定'
+                          : _elapsedOpacity <= 0
+                          ? '非表示'
+                          : '${(_elapsedOpacity * 100).round()}%',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    onTap: _openElapsedOpacitySheet,
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.workspace_premium_outlined),
+                    title: const Text('課金'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _openPremiumSheet();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.mail_outline),
+                    title: const Text('フィードバック'),
+                    onTap: _sendFeedback,
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.delete_outline,
+                      color: Colors.red,
+                    ),
+                    title: const Text(
+                      'データクリア',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                    onTap: _confirmClearData,
+                  ),
+                  if (_isPremium)
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _premiumType == 'onetime'
+                                ? 'プレミアム会員（買い切り）'
+                                : 'プレミアム会員（月額）',
+                            style: const TextStyle(color: Colors.green),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
-              onTap: _openBackgroundSettings,
             ),
-            ListTile(
-              leading: Icon(
-                Icons.timer_outlined,
-                color: _isPremium ? null : Colors.black38,
-              ),
-              title: Row(
-                children: [
-                  const Text('経過秒数の濃さ'),
-                  if (!_isPremium) ...[
-                    const SizedBox(width: 6),
-                    const Icon(Icons.lock, size: 14, color: Colors.black38),
-                  ],
-                ],
-              ),
-              subtitle: Text(
-                !_isPremium
-                    ? 'プレミアム限定'
-                    : _elapsedOpacity <= 0
-                    ? '非表示'
-                    : '${(_elapsedOpacity * 100).round()}%',
-                style: const TextStyle(fontSize: 12),
-              ),
-              onTap: _openElapsedOpacitySheet,
-            ),
-            ListTile(
-              leading: const Icon(Icons.workspace_premium_outlined),
-              title: const Text('課金'),
-              onTap: () {
-                Navigator.pop(context);
-                _openPremiumSheet();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.mail_outline),
-              title: const Text('フィードバック'),
-              onTap: _sendFeedback,
-            ),
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('データクリア', style: TextStyle(color: Colors.red)),
-              onTap: _confirmClearData,
-            ),
-            if (_isPremium)
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.check_circle,
-                      color: Colors.green,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _premiumType == 'onetime'
-                          ? 'プレミアム会員（買い切り）'
-                          : 'プレミアム会員（月額）',
-                      style: const TextStyle(color: Colors.green),
-                    ),
-                  ],
-                ),
-              ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// テキストを1行入力するダイアログ。
+///
+/// TextEditingController は閉じるアニメーションが終わるまで使われるため、
+/// 呼び出し側で await 直後に dispose すると「used after being disposed」に
+/// なる。コントローラはこのウィジェットが持って破棄する。
+class _TextInputDialog extends StatefulWidget {
+  final String title;
+  final String initial;
+  final String confirmLabel;
+  final String? hintText;
+
+  /// 数字だけを受け付け、大きく中央寄せで表示する。
+  final bool numberOnly;
+
+  const _TextInputDialog({
+    required this.title,
+    required this.initial,
+    required this.confirmLabel,
+    this.hintText,
+    this.numberOnly = false,
+  });
+
+  @override
+  State<_TextInputDialog> createState() => _TextInputDialogState();
+}
+
+class _TextInputDialogState extends State<_TextInputDialog> {
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initial,
+  );
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        maxLength: widget.numberOnly ? null : 20,
+        keyboardType: widget.numberOnly ? TextInputType.number : null,
+        inputFormatters: widget.numberOnly
+            ? [FilteringTextInputFormatter.digitsOnly]
+            : null,
+        textAlign: widget.numberOnly ? TextAlign.center : TextAlign.start,
+        style: widget.numberOnly
+            ? const TextStyle(fontSize: 28, fontWeight: FontWeight.bold)
+            : null,
+        decoration: InputDecoration(hintText: widget.hintText, counterText: ''),
+        onSubmitted: (v) => Navigator.pop(context, v),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('キャンセル'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _controller.text),
+          child: Text(widget.confirmLabel),
+        ),
+      ],
     );
   }
 }

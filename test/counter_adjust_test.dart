@@ -208,4 +208,96 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('小役カウンター プレミアム'), findsOneWidget);
   });
+
+  testWidgets('課金済みならボタン名を変更でき、ボタン面にも出る', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'button_layout': 4,
+      'button_counts': ['3', '0', '0', '0'],
+      'premium_type': 'onetime',
+      'counter_hint_shown': true,
+      'start_entered': true,
+      'start_count': 100,
+    });
+    await tester.pumpWidget(const SpinCounterApp());
+    await tester.pumpAndSettle();
+
+    // 名前を付ける前はボタン面にラベルは出ない
+    expect(
+      tester.widget<CounterButton>(find.byType(CounterButton).first).label,
+      isNull,
+    );
+
+    await tester.longPress(find.byType(CounterButton).first);
+    await tester.pumpAndSettle();
+    expect(find.text('ボタン1'), findsOneWidget);
+
+    // チップをタップして名前を変える
+    await tester.tap(find.text('ボタン1'));
+    await tester.pumpAndSettle();
+    expect(find.text('ボタンの名前'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).last, 'ベル');
+    await tester.tap(find.widgetWithText(FilledButton, '決定'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ベル'), findsWidgets);
+    expect(find.text('ボタン1'), findsNothing);
+
+    await tester.tap(find.text('完了'));
+    await tester.pumpAndSettle();
+
+    // ボタン面にもラベルが出る
+    expect(
+      tester.widget<CounterButton>(find.byType(CounterButton).first).label,
+      'ベル',
+    );
+    // 名前を付けていないボタンは今までどおり
+    expect(
+      tester.widget<CounterButton>(find.byType(CounterButton).at(1)).label,
+      isNull,
+    );
+  });
+
+  testWidgets('名前を空にすると「ボタンN」に戻る', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'button_layout': 4,
+      'premium_type': 'onetime',
+      'counter_hint_shown': true,
+      'start_entered': true,
+      'start_count': 100,
+      'counter_names_v1': '{"counter_0":"ベル"}',
+    });
+    await tester.pumpWidget(const SpinCounterApp());
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.byType(CounterButton).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('ベル').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, '');
+    await tester.tap(find.widgetWithText(FilledButton, '決定'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('ボタン1'), findsOneWidget);
+  });
+
+  testWidgets('非課金だとボタン名は変更できない', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'button_layout': 4,
+      'premium_type': 'none',
+      'counter_hint_shown': true,
+      'start_entered': true,
+      'start_count': 100,
+    });
+    await tester.pumpWidget(const SpinCounterApp());
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.byType(CounterButton).first);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('ボタン1'));
+    await tester.pumpAndSettle();
+    // 名前の入力ではなく課金シートに誘導される
+    expect(find.text('ボタンの名前'), findsNothing);
+    expect(find.text('小役カウンター プレミアム'), findsOneWidget);
+  });
 }

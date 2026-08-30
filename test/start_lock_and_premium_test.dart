@@ -48,7 +48,14 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
-    expect(find.text('プレミアム限定'), findsOneWidget);
+    // 「プレミアム限定」はレイアウト保存の項目にも出るので、対象の項目に絞る
+    expect(
+      find.descendant(
+        of: find.widgetWithText(ListTile, '経過秒数の濃さ'),
+        matching: find.text('プレミアム限定'),
+      ),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('経過秒数の濃さ'));
     await tester.pumpAndSettle();

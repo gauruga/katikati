@@ -10,10 +10,6 @@ class LayoutSettingsPage extends StatefulWidget {
   final String layoutMode;
   // 固定レイアウトに戻す
   final VoidCallback onUseFixedLayout;
-  // 名前を付けて保存したレイアウト
-  final List<LayoutPreset> presets;
-  final Future<void> Function(LayoutPreset preset) onApplyPreset;
-  final Future<List<LayoutPreset>> Function(String name) onDeletePreset;
   // fromDefault: true = デフォルト配置から編集を開始 / false = 現在の配置から編集を開始
   final void Function(bool fromDefault) onOpenFreeEditor;
   final ValueChanged<int> onButtonCountChanged;
@@ -25,9 +21,6 @@ class LayoutSettingsPage extends StatefulWidget {
     required this.isPremium,
     required this.layoutMode,
     required this.onUseFixedLayout,
-    required this.presets,
-    required this.onApplyPreset,
-    required this.onDeletePreset,
     required this.onOpenFreeEditor,
     required this.onButtonCountChanged,
     required this.onUpgrade,
@@ -46,7 +39,6 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
   late int _fixedCount;
   late int _freeCount;
   late String _mode;
-  late List<LayoutPreset> _presets;
 
   @override
   void initState() {
@@ -56,7 +48,6 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
     _fixedCount = widget.initialButtonCount;
     _freeCount = widget.initialButtonCount;
     _mode = widget.layoutMode;
-    _presets = List.of(widget.presets);
   }
 
   @override
@@ -279,7 +270,11 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
           ),
           _sectionDivider(),
           if (widget.isPremium)
-            _buildPresetList()
+            const Text(
+              'この配置に名前を付けて保存したり、保存した配置を呼び出したりするのは、'
+              'メニューの「レイアウトの保存」から行えます。',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            )
           else
             SizedBox(
               width: double.infinity,
@@ -318,88 +313,5 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
       setState(() => _appliedCount = _freeCount);
     }
     widget.onOpenFreeEditor(true);
-  }
-
-  Widget _buildPresetList() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '保存したレイアウト',
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          _presets.isEmpty
-              ? 'レイアウト編集画面の「保存」で、機種ごとの配置に名前を付けて保存できます。'
-              : 'タップするとその配置を呼び出します。',
-          style: const TextStyle(fontSize: 12, color: Colors.black54),
-        ),
-        const SizedBox(height: 10),
-        for (final preset in _presets)
-          Card(
-            margin: const EdgeInsets.only(bottom: 8),
-            child: ListTile(
-              leading: const Icon(
-                Icons.dashboard_customize_outlined,
-                color: Color(0xFF7C4DFF),
-              ),
-              title: Text(
-                preset.name,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              subtitle: Text(
-                'ボタン${preset.buttonCount}個'
-                '${preset.memoIds.isEmpty ? '' : ' / メモ${preset.memoIds.length}個'}',
-                style: const TextStyle(fontSize: 12),
-              ),
-              trailing: IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.black45),
-                onPressed: () => _confirmDelete(preset),
-              ),
-              onTap: () => _apply(preset),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Future<void> _apply(LayoutPreset preset) async {
-    await widget.onApplyPreset(preset);
-    if (!mounted) return;
-    setState(() {
-      _appliedCount = preset.buttonCount;
-      _fixedCount = preset.buttonCount;
-      _freeCount = preset.buttonCount;
-    });
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('「${preset.name}」を呼び出しました')));
-    Navigator.pop(context);
-  }
-
-  Future<void> _confirmDelete(LayoutPreset preset) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('「${preset.name}」を削除しますか？'),
-        content: const Text('保存したレイアウトを削除します。この操作は取り消せません。'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('キャンセル'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('削除する'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    final presets = await widget.onDeletePreset(preset.name);
-    if (!mounted) return;
-    setState(() => _presets = presets);
   }
 }
