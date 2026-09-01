@@ -8,7 +8,7 @@ class StateStore {
   static const _kTotal = 'total';
   static const _kButtonCounts = 'button_counts';
   static const _kButtonLayout = 'button_layout';
-  static const _kPremiumType = 'premium_type'; // none | onetime | monthly
+  static const _kPremiumType = 'premium_type'; // none | lifetime | monthly
   static const _kLayoutMode = 'layout_mode'; // fixed | free
   // メインカウンタ下の経過秒数表示の濃さ（0.0=非表示 〜 1.0=くっきり）
   static const _kElapsedOpacity = 'elapsed_opacity';
@@ -27,7 +27,7 @@ class StateStore {
               .map((e) => int.tryParse(e) ?? 0)
               .toList(),
       'buttonLayout': prefs.getInt(_kButtonLayout) ?? 4,
-      'premiumType': prefs.getString(_kPremiumType) ?? 'none',
+      'premiumType': _premiumTypeOf(prefs.getString(_kPremiumType)),
       'layoutMode': prefs.getString(_kLayoutMode) ?? 'fixed',
       'elapsedOpacity': (prefs.getDouble(_kElapsedOpacity) ?? 1.0).clamp(
         0.0,
@@ -35,6 +35,15 @@ class StateStore {
       ),
     };
   }
+
+  /// 買い切りプランは以前 'onetime' で保存していた。
+  /// 商品IDを 'lifetime' に合わせたので、古い値はここで読み替える。
+  static String _premiumTypeOf(String? stored) =>
+      stored == null || stored.isEmpty
+      ? 'none'
+      : stored == 'onetime'
+      ? 'lifetime'
+      : stored;
 
   Future<void> save({
     required int startCount,

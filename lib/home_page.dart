@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'background_settings_page.dart';
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
+
 import 'billing.dart';
 import 'free_layout_editor_page.dart';
 import 'gogo_lamp_button.dart';
@@ -48,7 +50,7 @@ class _HomePageState extends State<HomePage>
   int _total = 0;
   List<int> _buttonCounts = List.filled(kMaxCounterButtons, 0);
   int _buttonLayout = 4; // 1〜9 (デフォルト4)
-  String _premiumType = 'none'; // none | onetime | monthly
+  String _premiumType = 'none'; // none | lifetime | monthly
   bool get _isPremium => _premiumType != 'none';
   bool _isPlaying = false;
 
@@ -1492,7 +1494,18 @@ class _HomePageState extends State<HomePage>
 
   // ---- 課金 ----
 
+  /// 課金の入り口。RevenueCat ダッシュボードで作ったペイウォールを優先して出し、
+  /// まだ用意できていない・出せない環境だけアプリ内のシートに戻す。
   Future<void> _openPremiumSheet() async {
+    final result = await _billing.presentPaywall();
+    // notPresented（すでに課金済み）や cancelled はそのまま終わってよい。
+    if (result != null && result != PaywallResult.error) return;
+    if (!mounted) return;
+    await _showFallbackPremiumSheet();
+  }
+
+  /// ペイウォールを出せないときに使うアプリ内のシート。
+  Future<void> _showFallbackPremiumSheet() async {
     await showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
@@ -1551,13 +1564,13 @@ class _HomePageState extends State<HomePage>
                         backgroundColor: const Color(0xFF7C4DFF),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
-                      onPressed: _canBuy(BillingService.onetimeId)
-                          ? () => _buy(ctx, BillingService.onetimeId)
+                      onPressed: _canBuy(BillingService.lifetimeId)
+                          ? () => _buy(ctx, BillingService.lifetimeId)
                           : null,
                       child: Text(
                         _planLabel(
                           '買い切りプラン',
-                          BillingService.onetimeId,
+                          BillingService.lifetimeId,
                           '一回のみ・永久利用',
                         ),
                         style: const TextStyle(fontSize: 15),
@@ -1604,6 +1617,14 @@ class _HomePageState extends State<HomePage>
                     onPressed: _purchasePending ? null : _billing.restore,
                     child: const Text('購入を復元する'),
                   ),
+                  if (_billing.available)
+                    TextButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _billing.presentCustomerCenter();
+                      },
+                      child: const Text('ご契約の管理'),
+                    ),
                   const Text(
                     '月額プランの解約はストアのサブスクリプション管理から行えます。',
                     textAlign: TextAlign.center,
@@ -1643,6 +1664,16 @@ class _HomePageState extends State<HomePage>
   Future<void> _buy(BuildContext ctx, String productId) async {
     Navigator.pop(ctx); // シートを閉じてストアの画面に譲る
     await _billing.buy(productId);
+  }
+
+  /// ドロワーに出す契約状態。月額は RevenueCat から取れた期日を添える。
+  /// 解約済みでも期限までは使えるので、その場合は「まで」と書き分ける。
+  String _premiumStatusLabel() {
+    if (_premiumType == 'lifetime') return 'プレミアム会員（買い切り）';
+    final renewsAt = _billing.renewsAt;
+    if (renewsAt == null) return 'プレミアム会員（月額）';
+    final date = '${renewsAt.year}/${renewsAt.month}/${renewsAt.day}';
+    return _billing.willRenew ? 'プレミアム会員（月額・$date 更新）' : 'プレミアム会員（月額・$date まで）';
   }
 
   // ---- フィードバック ----
@@ -2370,6 +2401,21 @@ class _HomePageState extends State<HomePage>
                       _openPremiumSheet();
                     },
                   ),
+                  // 解約・返金・復元は RevenueCat の Customer Center に任せる。
+                  // ストアに繋がっていないときは開けないので出さない。
+                  if (_billing.available)
+                    ListTile(
+                      leading: const Icon(Icons.manage_accounts_outlined),
+                      title: const Text('ご契約の管理'),
+                      subtitle: const Text(
+                        '解約・返金の申請・購入の復元',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _billing.presentCustomerCenter();
+                      },
+                    ),
                   ListTile(
                     leading: const Icon(Icons.mail_outline),
                     title: const Text('フィードバック'),
@@ -2398,11 +2444,11 @@ class _HomePageState extends State<HomePage>
                             size: 18,
                           ),
                           const SizedBox(width: 8),
-                          Text(
-                            _premiumType == 'onetime'
-                                ? 'プレミアム会員（買い切り）'
-                                : 'プレミアム会員（月額）',
-                            style: const TextStyle(color: Colors.green),
+                          Expanded(
+                            child: Text(
+                              _premiumStatusLabel(),
+                              style: const TextStyle(color: Colors.green),
+                            ),
                           ),
                         ],
                       ),
