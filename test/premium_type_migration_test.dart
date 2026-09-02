@@ -50,7 +50,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
     // ペイウォールも Customer Center も出せないので導線は隠す
-    expect(find.text('ご契約の管理'), findsNothing);
+    expect(find.text('管理'), findsNothing);
 
     await tester.tap(find.text('課金'));
     await tester.pumpAndSettle();

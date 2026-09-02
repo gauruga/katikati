@@ -2454,7 +2454,7 @@ class _HomePageState extends State<HomePage>
                   if (_billing.available)
                     ListTile(
                       leading: const Icon(Icons.manage_accounts_outlined),
-                      title: const Text('ご契約の管理'),
+                      title: const Text('管理'),
                       onTap: () {
                         Navigator.pop(context);
                         _billing.presentCustomerCenter();
