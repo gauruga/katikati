@@ -150,6 +150,25 @@ void main() {
     _expectFullItems(findsOneWidget);
   });
 
+  testWidgets('上限より大きいボタン数が保存されていても9個に収まる', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'button_layout': 12,
+      'counter_hint_shown': true,
+    });
+    await tester.pumpWidget(const SpinCounterApp());
+    await tester.pumpAndSettle();
+
+    expect(find.byType(CounterButton), findsNWidgets(kMaxCounterButtons));
+    // レイアウト変更画面でも、選べる範囲の数が選択済みとして出る
+    await _openMenu(tester);
+    await tester.tap(find.text('レイアウト変更'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('適用'));
+    await tester.pumpAndSettle();
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getInt('button_layout'), kMaxCounterButtons);
+  });
+
   test('シンプル表示の既定配置には取り払う5つが含まれない', () {
     const canvas = Size(411, 774);
     final full = fixedLayoutRects(canvas, 4);

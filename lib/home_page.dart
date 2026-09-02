@@ -166,7 +166,11 @@ class _HomePageState extends State<HomePage>
         }
         _buttonCounts = filled;
       }
-      _buttonLayout = data['buttonLayout'];
+      // 上限より大きい値が保存されていても、必ず選べる範囲に収める
+      _buttonLayout = (data['buttonLayout'] as int).clamp(
+        1,
+        kMaxCounterButtons,
+      );
       _premiumType = data['premiumType'];
       _layoutMode = data['layoutMode'];
       _simpleLayout = data['simpleLayout'];
