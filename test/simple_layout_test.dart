@@ -114,6 +114,42 @@ void main() {
     expect(find.byIcon(Icons.stop_rounded), findsNothing);
   });
 
+  testWidgets('シンプル表示を行き来してもボタン数とカウントは変わらない', (tester) async {
+    await _launch(tester);
+
+    // 1番目のボタンを2回、2番目を1回押しておく
+    await tester.tap(find.byType(CounterButton).at(0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(CounterButton).at(0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(CounterButton).at(1));
+    await tester.pumpAndSettle();
+
+    Future<void> toggle() async {
+      await _openMenu(tester);
+      await tester.tap(find.text('シンプル表示'));
+      await tester.pumpAndSettle();
+      await tester.tapAt(const Offset(700, 300));
+      await tester.pumpAndSettle();
+    }
+
+    String countOf(int index) => tester
+        .widget<CounterButton>(find.byType(CounterButton).at(index))
+        .count
+        .toString();
+
+    await toggle(); // オン
+    expect(find.byType(CounterButton), findsNWidgets(4));
+    expect(countOf(0), '2');
+    expect(countOf(1), '1');
+
+    await toggle(); // オフ
+    expect(find.byType(CounterButton), findsNWidgets(4));
+    expect(countOf(0), '2');
+    expect(countOf(1), '1');
+    _expectFullItems(findsOneWidget);
+  });
+
   test('シンプル表示の既定配置には取り払う5つが含まれない', () {
     const canvas = Size(411, 774);
     final full = fixedLayoutRects(canvas, 4);
@@ -133,13 +169,15 @@ void main() {
     );
   });
 
-  test('下部ボタンは12個まで並べられる', () {
-    expect(kMaxCounterButtons, 12);
+  test('下部ボタンの数はシンプル表示でも今まで通り9個まで', () {
+    // 上限を揃えておくと、シンプル表示をオン／オフしてもボタン数を
+    // 変えずに済む（＝カウントがそのまま残る）。
+    expect(kMaxCounterButtons, 9);
     for (int n = 1; n <= kMaxCounterButtons; n++) {
       final rows = bottomGridRows(n);
       expect(rows.fold<int>(0, (a, b) => a + b), n, reason: '$n個');
     }
-    expect(bottomGridRows(12), [4, 4, 4]);
+    expect(bottomGridRows(9), [3, 3, 3]);
     // 上限を超えても最大の並びに丸められる
     expect(bottomGridRows(99), bottomGridRows(kMaxCounterButtons));
   });

@@ -2102,9 +2102,6 @@ class _HomePageState extends State<HomePage>
     [Color(0xFF7C4DFF), Color(0xFFB388FF)], // 濃紫
     [Color(0xFF42A5F5), Color(0xFF90CAF9)], // 青
     [Color(0xFFEC407A), Color(0xFFF48FB1)], // ピンク
-    [Color(0xFF8D6E63), Color(0xFFBCAAA4)], // ブラウン
-    [Color(0xFF5C6BC0), Color(0xFF9FA8DA)], // インディゴ
-    [Color(0xFF9CCC65), Color(0xFFC5E1A5)], // ライトグリーン
   ];
 
   Widget _counterButtonContent(int index) {

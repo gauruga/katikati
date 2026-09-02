@@ -100,7 +100,7 @@ const double kRefHeight = 820.0;
 /// キャンバスサイズが分からないときの既定値。
 const Size kRefCanvas = Size(kRefWidth, kRefHeight);
 
-const int kMaxCounterButtons = 12;
+const int kMaxCounterButtons = 9;
 
 /// シンプル表示（メニューのオン／オフ）で画面から取り払うアイテムのID。
 /// 開始ゲーム数 / 合計 / 再生 / 停止 / ボーナス（ランプ）。
@@ -128,7 +128,6 @@ int colsForButtonCount(int buttonCount) {
 /// 行の高さは均等なので、1行あたりの個数が少ない行ほどボタンが大きくなる。
 /// 例) 1個 → 特大1個 / 2個 → 横長2段 / 3個 → 上に横長1個＋下に2個 /
 ///     5個 → 上に大きめ2個＋下に3個
-/// 10個以上はシンプル表示（上段を隠して縦を空ける）向けの並び。
 List<int> bottomGridRows(int buttonCount) {
   switch (buttonCount.clamp(1, kMaxCounterButtons)) {
     case 1:
@@ -147,14 +146,8 @@ List<int> bottomGridRows(int buttonCount) {
       return const [2, 2, 3];
     case 8:
       return const [2, 3, 3];
-    case 9:
-      return const [3, 3, 3];
-    case 10:
-      return const [3, 3, 4];
-    case 11:
-      return const [3, 4, 4];
     default:
-      return const [4, 4, 4];
+      return const [3, 3, 3];
   }
 }
 
