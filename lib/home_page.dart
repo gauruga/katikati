@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'background_settings_page.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
@@ -1707,33 +1706,6 @@ class _HomePageState extends State<HomePage>
     return _billing.willRenew ? 'プレミアム会員（月額・$date 更新）' : 'プレミアム会員（月額・$date まで）';
   }
 
-  // ---- フィードバック ----
-
-  Future<void> _sendFeedback() async {
-    Navigator.pop(context); // close drawer
-    final uri = Uri(
-      scheme: 'mailto',
-      path: 'test@example.com',
-      query:
-          'subject=${Uri.encodeComponent('小役カウンター フィードバック')}'
-          '&body=${Uri.encodeComponent('ご意見・ご要望をご記入ください。\n\n')}',
-    );
-    try {
-      final ok = await launchUrl(uri);
-      if (!ok && mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('メールアプリを起動できませんでした')));
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('メールアプリを起動できませんでした')));
-      }
-    }
-  }
-
   // ---- UI ----
 
   @override
@@ -2410,6 +2382,9 @@ class _HomePageState extends State<HomePage>
                         ],
                       ],
                     ),
+                    subtitle: _isPremium
+                        ? null
+                        : const Text('プレミアム限定', style: TextStyle(fontSize: 12)),
                     onTap: _openBackgroundSettings,
                   ),
                   ListTile(
@@ -2460,11 +2435,6 @@ class _HomePageState extends State<HomePage>
                         _billing.presentCustomerCenter();
                       },
                     ),
-                  ListTile(
-                    leading: const Icon(Icons.mail_outline),
-                    title: const Text('フィードバック'),
-                    onTap: _sendFeedback,
-                  ),
                   const Divider(),
                   ListTile(
                     leading: const Icon(
