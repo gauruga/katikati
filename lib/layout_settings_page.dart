@@ -127,9 +127,15 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(
+            '下部ボタンの数（1〜$kMaxCounterButtons）',
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
+          const SizedBox(height: 6),
           const Text(
-            '下部ボタンの数（1〜9）',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+            '数が多いときは、メニューの「シンプル表示」をオンにすると'
+            '上の段が消えてボタンを大きく使えます。',
+            style: TextStyle(fontSize: 12, color: Colors.black54),
           ),
           const SizedBox(height: 16),
           _countSelector(
@@ -217,9 +223,9 @@ class _LayoutSettingsPageState extends State<LayoutSettingsPage>
               ),
             ),
           if (!widget.isPremium) const SizedBox(height: 20),
-          const Text(
-            '下部ボタンの数（1〜9）',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+          Text(
+            '下部ボタンの数（1〜$kMaxCounterButtons）',
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
           ),
           const SizedBox(height: 6),
           const Text(

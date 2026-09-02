@@ -31,6 +31,14 @@ void main() {
     await tester.tap(find.byIcon(Icons.menu));
     await tester.pumpAndSettle();
 
+    // メニューは項目が多く、低い画面ではスクロールしないと最後まで出ない。
+    await tester.dragUntilVisible(
+      find.text('プレミアム会員（買い切り）'),
+      find.byType(ListView),
+      const Offset(0, -60),
+    );
+    await tester.pumpAndSettle();
+
     expect(find.text('プレミアム会員（買い切り）'), findsOneWidget);
   });
 

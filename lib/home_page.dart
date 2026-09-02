@@ -49,12 +49,15 @@ class _HomePageState extends State<HomePage>
   int _mainCount = 0;
   int _total = 0;
   List<int> _buttonCounts = List.filled(kMaxCounterButtons, 0);
-  int _buttonLayout = 4; // 1〜9 (デフォルト4)
+  int _buttonLayout = 4; // 1〜kMaxCounterButtons (デフォルト4)
   String _premiumType = 'none'; // none | lifetime | monthly
   bool get _isPremium => _premiumType != 'none';
   bool _isPlaying = false;
 
   String _layoutMode = 'fixed'; // 'fixed' | 'free'
+  // シンプル表示：開始ゲーム数・合計・再生／停止・ボーナスを取り払い、
+  // 空いた分だけ下部カウントボタンを大きく（＆多く）使えるようにする。
+  bool _simpleLayout = false;
   // 経過秒数表示の濃さ（0.0=非表示 〜 1.0=くっきり）
   double _elapsedOpacity = 1.0;
   Map<String, Offset> _freePositions = {};
@@ -166,6 +169,7 @@ class _HomePageState extends State<HomePage>
       _buttonLayout = data['buttonLayout'];
       _premiumType = data['premiumType'];
       _layoutMode = data['layoutMode'];
+      _simpleLayout = data['simpleLayout'];
       _elapsedOpacity = data['elapsedOpacity'];
       _freePositions = layout.positions;
       _freeScales = layout.scales;
@@ -198,6 +202,7 @@ class _HomePageState extends State<HomePage>
       buttonLayout: _buttonLayout,
       premiumType: _premiumType,
       layoutMode: _layoutMode,
+      simpleLayout: _simpleLayout,
       elapsedOpacity: _elapsedOpacity,
     );
   }
@@ -810,13 +815,25 @@ class _HomePageState extends State<HomePage>
     );
   }
 
+  /// シンプル表示の切り替え。
+  /// オンにすると停止ボタンも消えるので、自動カウント中なら先に止めておく。
+  void _setSimpleLayout(bool value) {
+    if (_simpleLayout == value) return;
+    if (value) _stopPlayIfNeeded();
+    setState(() => _simpleLayout = value);
+    _persist();
+  }
+
   List<String> _freeItemIds() {
     return [
-      'start_box',
-      'total_box',
-      'play_btn',
-      'lamp_btn',
-      'stop_btn',
+      // シンプル表示のときは、この5つを画面から取り払う
+      if (!_simpleLayout) ...[
+        'start_box',
+        'total_box',
+        'play_btn',
+        'lamp_btn',
+        'stop_btn',
+      ],
       'dec_100',
       'dec_10',
       'dec_1',
@@ -867,8 +884,16 @@ class _HomePageState extends State<HomePage>
   _resolveFreeLayout(bool fromDefault) {
     final ids = _freeItemIds();
     final count = _buttonLayout.clamp(1, kMaxCounterButtons);
-    final defPos = defaultPositions(canvas: _canvas, buttonCount: count);
-    final defScale = defaultScales(canvas: _canvas, buttonCount: count);
+    final defPos = defaultPositions(
+      canvas: _canvas,
+      buttonCount: count,
+      simple: _simpleLayout,
+    );
+    final defScale = defaultScales(
+      canvas: _canvas,
+      buttonCount: count,
+      simple: _simpleLayout,
+    );
     final positions = <String, Offset>{};
     final scales = <String, ItemScale>{};
     int memoOrder = 0;
@@ -1063,6 +1088,7 @@ class _HomePageState extends State<HomePage>
       memoTexts: Map.of(_memoTexts),
       memoCollapsed: _memoCollapsed.toList(),
       excludedIds: _excludedFreeIds.toList(),
+      simpleLayout: _simpleLayout,
       savedAt: DateTime.now().millisecondsSinceEpoch,
     );
     final presets = await _presetStore.save(preset);
@@ -1081,6 +1107,7 @@ class _HomePageState extends State<HomePage>
       _memoTexts = Map.of(preset.memoTexts);
       _memoCollapsed = preset.memoCollapsed.toSet();
       _excludedFreeIds = preset.excludedIds.toSet();
+      _simpleLayout = preset.simpleLayout;
       _layoutMode = 'free';
     });
     await _layoutStore.save(_freePositions, _freeScales);
@@ -2075,6 +2102,9 @@ class _HomePageState extends State<HomePage>
     [Color(0xFF7C4DFF), Color(0xFFB388FF)], // 濃紫
     [Color(0xFF42A5F5), Color(0xFF90CAF9)], // 青
     [Color(0xFFEC407A), Color(0xFFF48FB1)], // ピンク
+    [Color(0xFF8D6E63), Color(0xFFBCAAA4)], // ブラウン
+    [Color(0xFF5C6BC0), Color(0xFF9FA8DA)], // インディゴ
+    [Color(0xFF9CCC65), Color(0xFFC5E1A5)], // ライトグリーン
   ];
 
   Widget _counterButtonContent(int index) {
@@ -2144,7 +2174,7 @@ class _HomePageState extends State<HomePage>
             rows.length * 84 + (rows.length - 1) * FixedLayout.gridGap;
         final rest =
             constraints.maxHeight -
-            FixedLayout.topHeight -
+            FixedLayout.topHeightFor(_simpleLayout) -
             FixedLayout.bottomGap;
         final gridHeight = rest > minGridHeight ? rest : minGridHeight;
         return SingleChildScrollView(
@@ -2152,16 +2182,20 @@ class _HomePageState extends State<HomePage>
           child: Column(
             children: [
               const SizedBox(height: FixedLayout.topGap),
-              SizedBox(
-                height: FixedLayout.startRowHeight,
-                child: _buildStartAndTotalRow(),
-              ),
-              const SizedBox(height: FixedLayout.gapAfterStart),
-              SizedBox(
-                height: FixedLayout.controlRowHeight,
-                child: _buildControlRow(),
-              ),
-              const SizedBox(height: FixedLayout.gapAfterControl),
+              // シンプル表示では開始ゲーム数／合計と再生・ボーナス・停止を出さず、
+              // その分の高さをまるごと下部カウントボタンに回す。
+              if (!_simpleLayout) ...[
+                SizedBox(
+                  height: FixedLayout.startRowHeight,
+                  child: _buildStartAndTotalRow(),
+                ),
+                const SizedBox(height: FixedLayout.gapAfterStart),
+                SizedBox(
+                  height: FixedLayout.controlRowHeight,
+                  child: _buildControlRow(),
+                ),
+                const SizedBox(height: FixedLayout.gapAfterControl),
+              ],
               SizedBox(
                 height: FixedLayout.mainRowHeight,
                 child: _buildMainCounterRow(),
@@ -2316,6 +2350,18 @@ class _HomePageState extends State<HomePage>
                     leading: const Icon(Icons.grid_view_rounded),
                     title: const Text('レイアウト変更'),
                     onTap: _openLayoutSettings,
+                  ),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.unfold_less_rounded),
+                    title: const Text('シンプル表示'),
+                    subtitle: const Text(
+                      '開始ゲーム数・合計・再生／停止・ボーナスを隠す',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    dense: true,
+                    value: _simpleLayout,
+                    activeThumbColor: const Color(0xFF7C4DFF),
+                    onChanged: _setSimpleLayout,
                   ),
                   ListTile(
                     leading: Icon(

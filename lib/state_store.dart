@@ -1,5 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'layout_positions.dart';
+
 /// SharedPreferences を使った永続化ヘルパー。
 class StateStore {
   static const _kStartCount = 'start_count';
@@ -10,6 +12,8 @@ class StateStore {
   static const _kButtonLayout = 'button_layout';
   static const _kPremiumType = 'premium_type'; // none | lifetime | monthly
   static const _kLayoutMode = 'layout_mode'; // fixed | free
+  // シンプル表示（開始ゲーム数・合計・再生／停止・ボーナスを隠す）
+  static const _kSimpleLayout = 'simple_layout';
   // メインカウンタ下の経過秒数表示の濃さ（0.0=非表示 〜 1.0=くっきり）
   static const _kElapsedOpacity = 'elapsed_opacity';
   // 「下部ボタンは長押しで修正できる」ヒントを一度出したか
@@ -23,12 +27,14 @@ class StateStore {
       'mainCount': prefs.getInt(_kMainCount) ?? 0,
       'total': prefs.getInt(_kTotal) ?? 0,
       'buttonCounts':
-          (prefs.getStringList(_kButtonCounts) ?? List.filled(9, '0'))
+          (prefs.getStringList(_kButtonCounts) ??
+                  List.filled(kMaxCounterButtons, '0'))
               .map((e) => int.tryParse(e) ?? 0)
               .toList(),
       'buttonLayout': prefs.getInt(_kButtonLayout) ?? 4,
       'premiumType': _premiumTypeOf(prefs.getString(_kPremiumType)),
       'layoutMode': prefs.getString(_kLayoutMode) ?? 'fixed',
+      'simpleLayout': prefs.getBool(_kSimpleLayout) ?? false,
       'elapsedOpacity': (prefs.getDouble(_kElapsedOpacity) ?? 1.0).clamp(
         0.0,
         1.0,
@@ -54,6 +60,7 @@ class StateStore {
     required int buttonLayout,
     required String premiumType,
     required String layoutMode,
+    required bool simpleLayout,
     required double elapsedOpacity,
   }) async {
     final prefs = await SharedPreferences.getInstance();
@@ -68,6 +75,7 @@ class StateStore {
     await prefs.setInt(_kButtonLayout, buttonLayout);
     await prefs.setString(_kPremiumType, premiumType);
     await prefs.setString(_kLayoutMode, layoutMode);
+    await prefs.setBool(_kSimpleLayout, simpleLayout);
     await prefs.setDouble(_kElapsedOpacity, elapsedOpacity);
   }
 

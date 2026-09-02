@@ -58,14 +58,20 @@ class FixedLayout {
       ItemSizes.mainCounter.height + elapsedHeight;
 
   /// 下部グリッドより上の合計高さ。
-  static double get topHeight =>
+  /// simple=true（シンプル表示）では開始ゲーム数／合計の段と
+  /// 再生・ボーナス・停止の段を出さないので、その分だけ低くなる。
+  static double topHeightFor(bool simple) =>
       topGap +
-      startRowHeight +
-      gapAfterStart +
-      controlRowHeight +
-      gapAfterControl +
+      (simple
+          ? 0
+          : startRowHeight +
+                gapAfterStart +
+                controlRowHeight +
+                gapAfterControl) +
       mainRowHeight +
       gapAfterMain;
+
+  static double get topHeight => topHeightFor(false);
 }
 
 /// アイテムの縦・横それぞれの拡大率。
@@ -94,7 +100,18 @@ const double kRefHeight = 820.0;
 /// キャンバスサイズが分からないときの既定値。
 const Size kRefCanvas = Size(kRefWidth, kRefHeight);
 
-const int kMaxCounterButtons = 9;
+const int kMaxCounterButtons = 12;
+
+/// シンプル表示（メニューのオン／オフ）で画面から取り払うアイテムのID。
+/// 開始ゲーム数 / 合計 / 再生 / 停止 / ボーナス（ランプ）。
+/// 空いた分だけ下部カウントボタンが大きくなり、個数も増やせる。
+const Set<String> kSimpleHiddenIds = {
+  'start_box',
+  'total_box',
+  'play_btn',
+  'lamp_btn',
+  'stop_btn',
+};
 const double kMinScale = 0.3;
 const double kMaxScale = 5.0;
 
@@ -111,6 +128,7 @@ int colsForButtonCount(int buttonCount) {
 /// 行の高さは均等なので、1行あたりの個数が少ない行ほどボタンが大きくなる。
 /// 例) 1個 → 特大1個 / 2個 → 横長2段 / 3個 → 上に横長1個＋下に2個 /
 ///     5個 → 上に大きめ2個＋下に3個
+/// 10個以上はシンプル表示（上段を隠して縦を空ける）向けの並び。
 List<int> bottomGridRows(int buttonCount) {
   switch (buttonCount.clamp(1, kMaxCounterButtons)) {
     case 1:
@@ -129,65 +147,79 @@ List<int> bottomGridRows(int buttonCount) {
       return const [2, 2, 3];
     case 8:
       return const [2, 3, 3];
-    default:
+    case 9:
       return const [3, 3, 3];
+    case 10:
+      return const [3, 3, 4];
+    case 11:
+      return const [3, 4, 4];
+    default:
+      return const [4, 4, 4];
   }
 }
 
 /// 指定サイズのキャンバス上で、固定レイアウトと全く同じ位置・大きさになる
 /// 矩形を計算する。自由配置レイアウトのデフォルトはこれをそのまま使う。
-Map<String, Rect> fixedLayoutRects(Size canvas, int buttonCount) {
+/// simple=true（シンプル表示）では kSimpleHiddenIds のアイテムを含めず、
+/// その段の高さも詰めるので、下部カウントボタンがその分だけ大きくなる。
+Map<String, Rect> fixedLayoutRects(
+  Size canvas,
+  int buttonCount, {
+  bool simple = false,
+}) {
   final map = <String, Rect>{};
   const pad = FixedLayout.hPadding;
   final contentW = canvas.width - pad * 2;
 
-  // 開始ゲーム数 / Total（flex 4 : 6）
   double y = FixedLayout.topGap;
-  final startW = (contentW - FixedLayout.startRowGap) * 0.4;
-  final totalW = (contentW - FixedLayout.startRowGap) * 0.6;
-  final startRowH = FixedLayout.startRowHeight;
-  map['start_box'] = Rect.fromLTWH(pad, y, startW, startRowH);
-  map['total_box'] = Rect.fromLTWH(
-    pad + startW + FixedLayout.startRowGap,
-    y,
-    totalW,
-    startRowH,
-  );
-  y += startRowH + FixedLayout.gapAfterStart;
+  if (!simple) {
+    // 開始ゲーム数 / Total（flex 4 : 6）
+    final startW = (contentW - FixedLayout.startRowGap) * 0.4;
+    final totalW = (contentW - FixedLayout.startRowGap) * 0.6;
+    final startRowH = FixedLayout.startRowHeight;
+    map['start_box'] = Rect.fromLTWH(pad, y, startW, startRowH);
+    map['total_box'] = Rect.fromLTWH(
+      pad + startW + FixedLayout.startRowGap,
+      y,
+      totalW,
+      startRowH,
+    );
+    y += startRowH + FixedLayout.gapAfterStart;
 
-  // 再生 / ランプ / 停止（中央寄せ）
-  const play = ItemSizes.playBtn;
-  const lamp = ItemSizes.lampBtn;
-  const stop = ItemSizes.stopBtn;
-  final controlH = FixedLayout.controlRowHeight;
-  final controlW =
-      play.width +
-      FixedLayout.controlGap +
-      lamp.width +
-      FixedLayout.controlGap +
-      stop.width;
-  double x = (canvas.width - controlW) / 2;
-  map['play_btn'] = Rect.fromLTWH(
-    x,
-    y + (controlH - play.height) / 2,
-    play.width,
-    play.height,
-  );
-  x += play.width + FixedLayout.controlGap;
-  map['lamp_btn'] = Rect.fromLTWH(
-    x,
-    y + (controlH - lamp.height) / 2,
-    lamp.width,
-    lamp.height,
-  );
-  x += lamp.width + FixedLayout.controlGap;
-  map['stop_btn'] = Rect.fromLTWH(
-    x,
-    y + (controlH - stop.height) / 2,
-    stop.width,
-    stop.height,
-  );
-  y += controlH + FixedLayout.gapAfterControl;
+    // 再生 / ランプ / 停止（中央寄せ）
+    const play = ItemSizes.playBtn;
+    const lamp = ItemSizes.lampBtn;
+    const stop = ItemSizes.stopBtn;
+    final controlH = FixedLayout.controlRowHeight;
+    final controlW =
+        play.width +
+        FixedLayout.controlGap +
+        lamp.width +
+        FixedLayout.controlGap +
+        stop.width;
+    double x = (canvas.width - controlW) / 2;
+    map['play_btn'] = Rect.fromLTWH(
+      x,
+      y + (controlH - play.height) / 2,
+      play.width,
+      play.height,
+    );
+    x += play.width + FixedLayout.controlGap;
+    map['lamp_btn'] = Rect.fromLTWH(
+      x,
+      y + (controlH - lamp.height) / 2,
+      lamp.width,
+      lamp.height,
+    );
+    x += lamp.width + FixedLayout.controlGap;
+    map['stop_btn'] = Rect.fromLTWH(
+      x,
+      y + (controlH - stop.height) / 2,
+      stop.width,
+      stop.height,
+    );
+    y += controlH + FixedLayout.gapAfterControl;
+  }
 
   // 増減ボタン列 + メインカウンタ
   const adj = ItemSizes.adjustBtn;
@@ -275,8 +307,9 @@ void _addGridRects(
 Map<String, Offset> defaultPositions({
   Size canvas = kRefCanvas,
   int buttonCount = kMaxCounterButtons,
+  bool simple = false,
 }) {
-  return fixedLayoutRects(canvas, buttonCount).map(
+  return fixedLayoutRects(canvas, buttonCount, simple: simple).map(
     (id, r) =>
         MapEntry(id, Offset(r.left / canvas.width, r.top / canvas.height)),
   );
@@ -286,8 +319,9 @@ Map<String, Offset> defaultPositions({
 Map<String, ItemScale> defaultScales({
   Size canvas = kRefCanvas,
   int buttonCount = kMaxCounterButtons,
+  bool simple = false,
 }) {
-  return fixedLayoutRects(canvas, buttonCount).map((id, r) {
+  return fixedLayoutRects(canvas, buttonCount, simple: simple).map((id, r) {
     final base = ItemSizes.forId(id);
     return MapEntry(
       id,
@@ -428,6 +462,8 @@ class LayoutPreset {
   final Map<String, String> memoTexts;
   final List<String> memoCollapsed;
   final List<String> excludedIds;
+  // 保存時にシンプル表示だったか（古い保存データには無いので既定 false）
+  final bool simpleLayout;
   final int savedAt; // 保存日時（ミリ秒）
 
   const LayoutPreset({
@@ -440,6 +476,7 @@ class LayoutPreset {
     required this.memoTexts,
     required this.memoCollapsed,
     required this.excludedIds,
+    this.simpleLayout = false,
     required this.savedAt,
   });
 
@@ -460,6 +497,7 @@ class LayoutPreset {
     'memoTexts': memoTexts,
     'memoCollapsed': memoCollapsed,
     'excludedIds': excludedIds,
+    'simpleLayout': simpleLayout,
     'savedAt': savedAt,
   };
 
@@ -491,6 +529,7 @@ class LayoutPreset {
       memoTexts: strMap(json['memoTexts']),
       memoCollapsed: strList(json['memoCollapsed']),
       excludedIds: strList(json['excludedIds']),
+      simpleLayout: json['simpleLayout'] as bool? ?? false,
       savedAt: (json['savedAt'] as num?)?.toInt() ?? 0,
     );
   }
