@@ -2449,15 +2449,12 @@ class _HomePageState extends State<HomePage>
                     },
                   ),
                   // 解約・返金・復元は RevenueCat の Customer Center に任せる。
+                  // 何ができるかは開いた先の画面が並べるので、メニューには書かない。
                   // ストアに繋がっていないときは開けないので出さない。
                   if (_billing.available)
                     ListTile(
                       leading: const Icon(Icons.manage_accounts_outlined),
                       title: const Text('ご契約の管理'),
-                      subtitle: const Text(
-                        '解約・返金の申請・購入の復元',
-                        style: TextStyle(fontSize: 12),
-                      ),
                       onTap: () {
                         Navigator.pop(context);
                         _billing.presentCustomerCenter();
