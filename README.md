@@ -1,16 +1,41 @@
-# spin_counter
+# 小役カウンター（katikati）
 
-A new Flutter project.
+スロットの小役回数を数える Flutter 製の Android アプリ。
 
-## Getting Started
+## 開発
 
-This project is a starting point for a Flutter application.
+```sh
+flutter pub get
+flutter run
+```
 
-A few resources to get you started if this is your first Flutter project:
+課金は RevenueCat 経由。API キーはリポジトリに置かず、ビルド時に渡す。
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+```sh
+flutter run --dart-define=REVENUECAT_ANDROID_KEY=goog_xxx
+flutter build appbundle --dart-define=REVENUECAT_ANDROID_KEY=goog_xxx
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+キーを渡さないデバッグビルドは RevenueCat の Test Store（擬似課金）で動く。
+キーを渡さないリリースビルドは課金 UI が「準備中」になる。
+
+## コミット前に通すもの
+
+CI は使っていないので、ローカルで必ず 3 つとも通す。
+
+```sh
+flutter analyze
+flutter test
+dart format --output=none --set-exit-if-changed lib/ test/
+```
+
+## 署名
+
+リリース署名は `android/key.properties`（gitignore 済み）から読む。
+このファイルが無い環境では debug 鍵にフォールバックするので、
+`flutter run --release` は鍵を持っていなくても動く。
+
+## プライバシーポリシー
+
+`docs/privacy.html` を GitHub Pages で公開し、その URL を
+Play Console のストア掲載情報とアプリ内メニューの両方から参照する。
