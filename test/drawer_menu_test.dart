@@ -21,6 +21,12 @@ void main() {
     expect(find.text('フィードバック'), findsNothing);
   });
 
+  testWidgets('プライバシーポリシーは課金の有無にかかわらず出す', (tester) async {
+    // ストア掲載情報と同じ導線をアプリ内にも置く必要がある。
+    await _openMenu(tester, premium: false);
+    expect(find.text('プライバシーポリシー'), findsOneWidget);
+  });
+
   testWidgets('非課金だと背景変更にもプレミアム限定と出る', (tester) async {
     await _openMenu(tester, premium: false);
 

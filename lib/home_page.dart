@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import 'background_settings_page.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'billing.dart';
 import 'free_layout_editor_page.dart';
@@ -1354,6 +1355,27 @@ class _HomePageState extends State<HomePage>
     setState(() => _presets = presets);
   }
 
+  // ---- プライバシーポリシー ----
+
+  /// docs/privacy.html を GitHub Pages で公開したもの。
+  /// Play Console のストア掲載情報にも同じURLを登録する。
+  static final _privacyPolicyUrl = Uri.parse(
+    'https://gauruga.github.io/katikati/privacy.html',
+  );
+
+  Future<void> _openPrivacyPolicy() async {
+    Navigator.pop(context); // close drawer
+    final opened = await launchUrl(
+      _privacyPolicyUrl,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('ブラウザを開けませんでした。')));
+    }
+  }
+
   // ---- 背景変更 ----
 
   void _openBackgroundSettings() {
@@ -2436,6 +2458,11 @@ class _HomePageState extends State<HomePage>
                       },
                     ),
                   const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.privacy_tip_outlined),
+                    title: const Text('プライバシーポリシー'),
+                    onTap: _openPrivacyPolicy,
+                  ),
                   ListTile(
                     leading: const Icon(
                       Icons.delete_outline,
