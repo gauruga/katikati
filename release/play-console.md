@@ -77,7 +77,7 @@ https://gauruga.github.io/katikati/privacy.html
 | アプリ / ゲームの別 | **アプリ**（ゲームではない） |
 | カテゴリ | ツール |
 | 無料 / 有料 | 無料（アプリ内購入あり） |
-| メールアドレス | 専用アドレス（プライバシーポリシーと同じもの） |
+| メールアドレス | privacy@motodori.com |
 | ウェブサイト | 任意。設定するなら https://gauruga.github.io/katikati/privacy.html |
 | プライバシーポリシー URL | https://gauruga.github.io/katikati/privacy.html |
 
